@@ -25,6 +25,7 @@ from app.modules.transactions.gateways.telegram_stars import (
     TelegramStarsGateway,
     with_bot_settings,
 )
+from app.modules.transactions.ports import RecurringOrderHooks
 from app.modules.transactions.repository import TransactionRepository
 from app.modules.transactions.usecases._refund import refund_refusal, rollback_input
 from app.modules.transactions.visibility import visible_transaction
@@ -54,6 +55,7 @@ class RefundTransactionUseCase(UseCase[RefundTransactionDto, RefundResultDto]):
         event_publisher: EventPublisher,
         uow: UnitOfWork,
         redis: Redis,
+        recurring_hooks: RecurringOrderHooks,
     ) -> None:
         self._transaction_repository = transaction_repository
         self._user_repository = user_repository
@@ -64,6 +66,7 @@ class RefundTransactionUseCase(UseCase[RefundTransactionDto, RefundResultDto]):
         self._event_publisher = event_publisher
         self._uow = uow
         self._redis = redis
+        self._recurring_hooks = recurring_hooks
 
     async def _execute(self, actor: Actor, data: RefundTransactionDto) -> RefundResultDto:
         rollback: Optional[PurchaseRollbackDto] = None
@@ -169,6 +172,7 @@ class RefundTransactionUseCase(UseCase[RefundTransactionDto, RefundResultDto]):
                     TransactionStatus.REFUNDED,
                     current=frozenset({TransactionStatus.PAID}),
                 )
+                await self._recurring_hooks.on_refunded(order)
                 await self._event_publisher.publish(
                     TransactionRefundedEvent(
                         order_id=order.id,

@@ -35,6 +35,7 @@ from app.modules.subscriptions.rollback import PurchaseRollbackService
 from app.modules.subscriptions.usecases import PurchaseSubscriptionUseCase
 from app.modules.users.dto import CreateUserDto, UserDto
 from app.modules.users.repository import UserRepository
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.remnawave import FakeUserStore
 from tests.modules.subscriptions.factories import make_eligibility, snapshot_from_plan
 
@@ -62,6 +63,7 @@ def purchase(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
 

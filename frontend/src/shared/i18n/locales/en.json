@@ -895,7 +895,12 @@
       "PasskeyRenamedEvent": "Passkey renamed",
       "AdLinkAttributedEvent": "Ad link visit",
       "BackupCompletedEvent": "Backup completed",
-      "ConnectGuideChangedEvent": "Connect guide changed"
+      "ConnectGuideChangedEvent": "Connect guide changed",
+      "RecurringPaymentUpcomingEvent": "Upcoming recurring payment",
+      "RecurringPaymentFailedEvent": "Recurring payment failed",
+      "RecurringPaymentPausedEvent": "Auto-renewal paused",
+      "RecurringPaymentExhaustedEvent": "Recurring payment retries exhausted",
+      "RecurringPaymentManagedEvent": "Recurring payment managed"
     },
     "eventVariants": {
       "CabinetUserRegisteredEvent": {
@@ -1649,7 +1654,8 @@
       },
       "flagHints": {
         "require_paid_purchase": "Customers see this payment method only after paying another way at least once. With no other method in Telegram, new customers can’t pay in the bot or the Mini App.",
-        "verify_ip": "Accept notifications only from YooKassa addresses. If a proxy in front of the server (e.g. Cloudflare) hides the real IP, set up real IP forwarding (realip) in the reverse proxy; turn off only if that isn’t possible."
+        "verify_ip": "Accept notifications only from YooKassa addresses. If a proxy in front of the server (e.g. Cloudflare) hides the real IP, set up real IP forwarding (realip) in the reverse proxy; turn off only if that isn’t possible.",
+        "payment_mode": "Single payments do not enable auto-renewal. Recurring only requires separate customer consent before payment. Single + recurring lets customers choose whether to enable auto-renewal. Enable recurring payments for the shop in YooKassa first."
       },
       "title": "Payment gateways",
       "description": "Configure payment gateways and their availability to customers",
@@ -1707,7 +1713,28 @@
         "vat_code": "VAT code",
         "verify_ip": "Verify webhook IP",
         "wallet_id": "Wallet ID",
-        "webhook_secret": "Webhook secret"
+        "webhook_secret": "Webhook secret",
+        "payment_mode": "Payment mode",
+        "recurring_lead_minutes": "Charge before expiry",
+        "recurring_retry_minutes": "Retry after a provider error",
+        "recurring_max_overdue_hours": "Stop retrying after expiry",
+        "recurring_notice_lead_minutes": "Notice before charge"
+      },
+      "choices": {
+        "payment_mode": {
+          "single": "Single payments only",
+          "recurring": "Recurring payments only",
+          "both": "Single + recurring payments"
+        }
+      },
+      "dependentGroups": {
+        "payment_mode": "Auto-renewal"
+      },
+      "suffixes": {
+        "recurring_lead_minutes": "min",
+        "recurring_retry_minutes": "min",
+        "recurring_max_overdue_hours": "h",
+        "recurring_notice_lead_minutes": "min"
       }
     },
     "webPush": {
@@ -2440,7 +2467,13 @@
     "ACCESS_SETTINGS_MANAGE": "Edit access settings",
     "BOT_REQUIREMENTS_VIEW": "View bot requirements",
     "BOT_REQUIREMENTS_MANAGE": "Edit bot requirements",
-    "PAYMENT_WAITLIST_VIEW": "View the payment waitlist"
+    "PAYMENT_WAITLIST_VIEW": "View the payment waitlist",
+    "TRANSACTIONS_RECURRING_VIEW": "View recurring payments",
+    "TRANSACTIONS_RECURRING_SUMMARY_VIEW": "View recurring payment totals",
+    "TRANSACTIONS_RECURRING_CHECK": "Check a pending recurring payment with YooKassa",
+    "TRANSACTIONS_RECURRING_CLOSE": "Close a pending recurring payment and withdraw the customer’s consent",
+    "TRANSACTIONS_RECURRING_RETRY": "Retry a recurring payment after a fix",
+    "TRANSACTIONS_RECURRING_CONSENT_VIEW": "View the auto-renewal consent a customer accepted"
   },
   "permissionCategories": {
     "botSettings": "Telegram bot",
@@ -3684,6 +3717,119 @@
         "telegram": "Telegram"
       },
       "name": "Name"
+    },
+    "recurring": {
+      "searchPlaceholder": "Customer or subscription ID",
+      "error": "Could not load automatic payments. Try again.",
+      "empty": "No automatic payments match this state.",
+      "limit": "Limit",
+      "states": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "pending": "Payment pending",
+        "retrying": "Retrying",
+        "attention": "Needs attention"
+      },
+      "next": {
+        "check": "Check",
+        "debit": "Next attempt",
+        "expiry": "Subscription until"
+      },
+      "kpi": {
+        "enabled": "Switched on",
+        "ofTotal": "of {{total}}",
+        "disabled_one": "{{count, number}} switched off by customers",
+        "disabled_other": "{{count, number}} switched off by customers",
+        "attention": "Need attention",
+        "inProgress": "{{pending}} awaiting payment, {{retrying}} retrying",
+        "paid": "Paid renewals",
+        "failed_one": "{{count, number}} failed attempt",
+        "failed_other": "{{count, number}} failed attempts",
+        "revenue": "Auto-renewal revenue",
+        "allTime": "all time"
+      },
+      "dialog": {
+        "title": "Auto-renewal of subscription #{{id}}",
+        "openSubscription": "To subscription",
+        "expiry": "Subscription until",
+        "expired": "already expired",
+        "sections": {
+          "state": "State",
+          "payment": "Payment",
+          "consent": "Customer consent"
+        },
+        "firstFailure_one": "First failure {{date}}, {{count, number}} retry",
+        "firstFailure_other": "First failure {{date}}, {{count, number}} retries",
+        "order": "Order",
+        "openOrder": "Open",
+        "providerId": "YooKassa ID",
+        "submitted": "Sent",
+        "nextAttempt": "Next attempt",
+        "savedCard": "Card saved",
+        "acceptedAt": "Accepted",
+        "revokedAt": "Withdrawn",
+        "termsText": "Text the customer accepted"
+      },
+      "reasons": {
+        "customer_disabled": "Auto-renewal was disabled by the customer",
+        "bank_declined": "The bank declined the payment",
+        "insufficient_funds": "Insufficient funds",
+        "issuer_unavailable": "The issuing bank is temporarily unavailable",
+        "payment_method_unavailable": "The payment method is temporarily unavailable",
+        "provider_unavailable": "The payment provider is unavailable",
+        "merchant_unavailable": "The shop cannot process payments",
+        "provider_configuration_error": "The payment or receipt configuration requires correction",
+        "provider_request_rejected": "YooKassa refused the charge to the saved card",
+        "provider_rejected": "The payment provider rejected the request",
+        "permission_revoked": "The payment provider mandate was revoked",
+        "payment_method_restricted": "The saved payment method is no longer valid",
+        "card_expired": "The card has expired",
+        "fraud_suspected": "The bank blocked the payment",
+        "price_changed": "The price exceeds the agreed limit",
+        "subscription_changed": "The subscription terms changed",
+        "shop_changed": "The payment shop changed",
+        "consent_required": "Consent to renewal terms is required",
+        "plan_unavailable": "The plan is not available for purchase",
+        "customer_email_required": "An email address is required for the receipt",
+        "gateway_disabled": "The shop disabled recurring payments",
+        "subscription_unavailable": "The subscription cannot be renewed",
+        "payment_status_unknown": "The previous payment outcome is unknown",
+        "pending_timeout": "The payment has been pending too long",
+        "retries_exhausted": "Payment retries were exhausted",
+        "payment_method_not_saved": "The payment provider did not save the payment method",
+        "renewal_window_expired": "The agreed renewal retry window expired",
+        "admin_closed": "Payment waiting was closed by an administrator",
+        "refunded": "A payment was refunded"
+      },
+      "hints": {
+        "merchant_unavailable": "Check the shop ID and secret key in the YooKassa settings, then retry.",
+        "provider_configuration_error": "Check the VAT rate and receipt settings in YooKassa, then retry.",
+        "provider_request_rejected": "Check the shop’s YooKassa settings (VAT, receipts, payment methods) and retry. If the retry is refused again, YooKassa is declining the card itself: the customer has to pay by hand and switch auto-renewal on again.",
+        "provider_unavailable": "YooKassa didn’t answer; the next attempt is scheduled automatically.",
+        "shop_changed": "The card was saved for another YooKassa shop; the customer has to pay once by hand to save it again.",
+        "price_changed": "The renewal now costs more than the customer agreed to; they have to accept the new terms.",
+        "plan_unavailable": "Make the plan available for purchase again or let the customer choose another one.",
+        "customer_email_required": "Receipts are on: set a shop payment email or ask the customer for one.",
+        "gateway_disabled": "Auto-renewal resumes once YooKassa and auto-renewal are switched on again.",
+        "payment_status_unknown": "Check the payment in YooKassa: if it went through, fulfil the order; otherwise close the wait.",
+        "pending_timeout": "Check the payment in YooKassa; the status is also polled every hour.",
+        "payment_method_not_saved": "YooKassa didn’t keep the card; the customer has to pay by hand once more with auto-renewal on.",
+        "consent_required": "The customer has to accept the auto-renewal terms again.",
+        "retries_exhausted": "The bank kept refusing; the customer has to renew by hand.",
+        "renewal_window_expired": "The agreed window for automatic charges has passed; the customer has to renew by hand."
+      },
+      "actions": {
+        "check": "Check with YooKassa",
+        "close": "Close waiting",
+        "retry": "Retry after correction",
+        "done": "Action completed",
+        "closeTitle": "Close payment waiting?",
+        "closeMessage": "Waiting will close and the existing renewal consent will be withdrawn. A payment already sent to YooKassa may still complete and renew the subscription. Future charges require fresh customer consent."
+      }
+    },
+    "tabs": {
+      "orders": "Orders",
+      "recurring": "Auto-renewals"
     }
   },
   "subscriptions": {
@@ -4625,7 +4771,16 @@
     "WEBHOOK_SOURCE_UNTRUSTED": "The webhook source isn’t trusted.",
     "WEBHOOK_STALE": "The webhook is outdated.",
     "BOT_PROXY_URL_INVALID": "Invalid proxy address: use socks5, socks5h or http with a host and a port.",
-    "TRANSLATION_VARIABLE_NOT_ALLOWED": "The text uses a variable or expression the original text doesn’t have."
+    "TRANSLATION_VARIABLE_NOT_ALLOWED": "The text uses a variable or expression the original text doesn’t have.",
+    "RECURRING_CONSENT_REQUIRED": "This payment method requires separate consent to auto-renewal.",
+    "GATEWAY_FIELD_INVALID_CHOICE": "Select an available payment mode.",
+    "GATEWAY_FIELD_OUT_OF_RANGE": "The value is outside the allowed range.",
+    "RECURRING_PAYMENT_IN_PROGRESS": "An automatic renewal payment for this subscription is already in progress.",
+    "RECURRING_TERMS_CHANGED": "The auto-renewal terms changed. Review and confirm them again.",
+    "RECURRING_NOT_AVAILABLE": "Auto-renewal isn’t available for this subscription.",
+    "RECURRING_RETRY_NOT_ALLOWED": "This recurring payment can’t be retried under the current consent.",
+    "RECURRING_PAYMENT_STATE_CHANGED": "The recurring payment changed. Refresh the list and try again.",
+    "TRANSLATION_TOO_LONG": "The text is too long: the bot can’t show it in one message."
   },
   "loyalty": {
     "settings": {

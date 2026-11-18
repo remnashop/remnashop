@@ -11,6 +11,7 @@ class GatewayResponse(BaseModel):
     is_active: bool
     is_configured: bool
     flags: dict[str, bool]
+    values: dict[str, str]
     telegram_enabled: bool
     cabinet_enabled: bool
 
@@ -28,10 +29,17 @@ class ReorderGatewaysRequest(BaseModel):
     types: list[PaymentGatewayType]
 
 
+class GatewayFieldConditionResponse(BaseModel):
+    field: str
+    value: str
+
+
 class GatewayFieldSpecResponse(BaseModel):
     key: str
-    kind: Literal["text", "secret", "number", "boolean"]
+    kind: Literal["text", "secret", "number", "boolean", "choice"]
+    options: list[str] = []
     required: bool
+    hidden_when: Optional[GatewayFieldConditionResponse] = None
 
 
 class GatewayCatalogEntryResponse(BaseModel):

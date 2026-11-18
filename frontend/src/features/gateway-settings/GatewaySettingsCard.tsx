@@ -1,5 +1,5 @@
 import type { ParseKeys } from "i18next";
-import { BookOpen } from "lucide-react";
+import { BookOpen, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -24,7 +24,9 @@ import { CopyInput, Input, PasswordInput } from "@shared/ui/glass/Input";
 import { Row } from "@shared/ui/glass/Row";
 import { Switch } from "@shared/ui/glass/Switch";
 import { Pressable } from "@shared/ui/Pressable";
+import { LabeledDivider } from "@shared/ui/LabeledDivider";
 import { SaveFooter } from "@shared/ui/SaveFooter";
+import { SelectDropdown } from "@shared/ui/SelectDropdown";
 
 import { ChannelTiles } from "./ChannelTiles";
 import { GATEWAY_DOCS_URLS } from "./docs-links";
@@ -59,7 +61,7 @@ export function GatewaySettingsCard({
   webhookUrl,
   onChanged,
 }: GatewaySettingsCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,10 +73,29 @@ export function GatewaySettingsCard({
 
   const label = t(`settings.gateways.types.${gateway.type}` as ParseKeys);
   const flagFields = fields.filter((field) => field.kind === "boolean");
-  const valueFields = fields.filter((field) => field.kind !== "boolean");
+  const choiceFields = fields.filter((field) => field.kind === "choice");
+  const plainValueFields = fields.filter((field) => field.kind !== "boolean" && field.kind !== "choice");
+  const stored = (key: string) => gateway.values[key] ?? "";
+  // conditional fields go under their own divider, named after the field they depend on
+  const valueFields = plainValueFields.filter((field) => field.hidden_when === null);
+  const dependentFields = plainValueFields.filter(
+    (field) => field.hidden_when !== null && stored(field.hidden_when.field) !== field.hidden_when.value,
+  );
+  const dependsOn = dependentFields[0]?.hidden_when?.field;
   const docsUrl = GATEWAY_DOCS_URLS[gateway.type];
   const logoUrl = GATEWAY_LOGOS[gateway.type];
-  const dirty = Object.values(values).some((value) => value !== "");
+  const fieldByKey = new Map(fields.map((field) => [field.key, field]));
+  // a blank secret or required field keeps what is stored; a blank optional one clears it
+  const clearable = (key: string) => {
+    const field = fieldByKey.get(key);
+    return field !== undefined && field.kind !== "secret" && !field.required;
+  };
+  const changedValues = Object.fromEntries(
+    Object.entries(values).filter(
+      ([key, value]) => value !== stored(key) && (value !== "" || clearable(key)),
+    ),
+  );
+  const dirty = Object.keys(changedValues).length > 0;
   // Stars pays inside the bot, there is no provider page to open
   const permissions = usePermissions();
   const canUpdate = permissions.includes("GATEWAYS_UPDATE");
@@ -84,18 +105,28 @@ export function GatewaySettingsCard({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    const changed = Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ""));
-    if (Object.keys(changed).length === 0) return;
+    if (!dirty) return;
 
     setIsSubmitting(true);
     try {
-      onChanged(await updateGatewaySettings(gateway.type, changed));
+      onChanged(await updateGatewaySettings(gateway.type, changedValues));
       setValues({});
       toast.success(t("common.saved"));
     } catch (err) {
       toast.error(getErrorMessage(err, t("common.errors.generic")));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleChoice = async (key: string, value: string) => {
+    setSavingFlag(key);
+    try {
+      onChanged(await updateGatewaySettings(gateway.type, { [key]: value }));
+    } catch (err) {
+      toast.error(getErrorMessage(err, t("common.errors.generic")));
+    } finally {
+      setSavingFlag(null);
     }
   };
 
@@ -176,6 +207,49 @@ export function GatewaySettingsCard({
     </Button>
   );
 
+  const renderValueField = (field: GatewayFieldSpec) => {
+    // once configured, a blank field keeps the stored value
+    const mustFill = field.required && !gateway.is_configured;
+    const suffixKey = `settings.gateways.suffixes.${field.key}`;
+    const inputProps = {
+      id: `gateway-${gateway.type}-${field.key}`,
+      inputMode: inputModeFor(field),
+      // a secret is never sent back, so its field starts empty; the rest show what is stored
+      value: values[field.key] ?? (field.kind === "secret" ? "" : stored(field.key)),
+      onChange: (event: ChangeEvent<HTMLInputElement>) =>
+        setValues((prev) => ({
+          ...prev,
+          [field.key]: sanitizeFieldValue(field, event.target.value),
+        })),
+      placeholder: t("settings.gateways.placeholder"),
+      disabled: !canUpdate,
+    };
+    return (
+      <Field
+        key={field.key}
+        label={t(`settings.gateways.fields.${field.key}` as ParseKeys)}
+        htmlFor={inputProps.id}
+        required={mustFill}
+        info={
+          field.key === "currency" && CURRENCY_HINT_GATEWAYS.has(gateway.type)
+            ? t(`settings.gateways.currencyHints.${gateway.type}` as ParseKeys)
+            : undefined
+        }
+      >
+        {field.kind === "secret" ? (
+          // "off" is ignored on password fields: the browser would offer the admin's saved password
+          <PasswordInput {...inputProps} autoComplete="new-password" />
+        ) : (
+          <Input
+            {...inputProps}
+            autoComplete="off"
+            suffix={i18n.exists(suffixKey) ? t(suffixKey as ParseKeys) : undefined}
+          />
+        )}
+      </Field>
+    );
+  };
+
   return (
     <Row
       glyph={
@@ -226,44 +300,38 @@ export function GatewaySettingsCard({
               />
             </div>
           ))}
-          {valueFields.map((field) => {
-            // once configured, a blank field keeps the stored value
-            const mustFill = field.required && !gateway.is_configured;
-            const inputProps = {
-              id: `gateway-${gateway.type}-${field.key}`,
-              inputMode: inputModeFor(field),
-              value: values[field.key] ?? "",
-              onChange: (event: ChangeEvent<HTMLInputElement>) =>
-                setValues((prev) => ({
-                  ...prev,
-                  [field.key]: sanitizeFieldValue(field, event.target.value),
-                })),
-              placeholder: t("settings.gateways.placeholder"),
-              disabled: !canUpdate,
-            };
-            return (
-              <Field
-                key={field.key}
-                label={t(`settings.gateways.fields.${field.key}` as ParseKeys)}
-                htmlFor={inputProps.id}
-                required={mustFill}
-                info={
-                  field.key === "currency" && CURRENCY_HINT_GATEWAYS.has(gateway.type)
-                    ? t(`settings.gateways.currencyHints.${gateway.type}` as ParseKeys)
-                    : undefined
-                }
-              >
-                {field.kind === "secret" ? (
-                  // "off" is ignored on password fields: the browser would offer the admin's saved password
-                  <PasswordInput {...inputProps} autoComplete="new-password" />
-                ) : (
-                  <Input {...inputProps} autoComplete="off" />
-                )}
-              </Field>
-            );
-          })}
-          {valueFields.length > 0 && canUpdate ? (
-            <SaveFooter flush dirty={dirty} saving={isSubmitting} beside={testButton} />
+          {choiceFields.map((field) => (
+            <Field
+              key={field.key}
+              htmlFor={`gateway-${gateway.type}-${field.key}`}
+              label={t(`settings.gateways.fields.${field.key}` as ParseKeys)}
+              info={t(`settings.gateways.flagHints.${field.key}` as ParseKeys)}
+            >
+              <SelectDropdown
+                id={`gateway-${gateway.type}-${field.key}`}
+                value={stored(field.key)}
+                options={field.options.map((value) => ({
+                  value,
+                  label: t(`settings.gateways.choices.${field.key}.${value}` as ParseKeys),
+                }))}
+                placeholder={t(`settings.gateways.fields.${field.key}` as ParseKeys)}
+                icon={SlidersHorizontal}
+                variant="well"
+                onChange={(value) => void handleChoice(field.key, value)}
+                disabled={!canUpdate || savingFlag === field.key}
+              />
+            </Field>
+          ))}
+          {valueFields.map(renderValueField)}
+          {dependsOn !== undefined && (
+            <LabeledDivider>{t(`settings.gateways.dependentGroups.${dependsOn}` as ParseKeys)}</LabeledDivider>
+          )}
+          {dependentFields.map(renderValueField)}
+          {plainValueFields.length > 0 && canUpdate ? (
+            // 4px on the fold-out's 12px gap: 16px above Save, as in a Section's footer
+            <div className="mt-1">
+              <SaveFooter flush dirty={dirty} saving={isSubmitting} beside={testButton} />
+            </div>
           ) : (
             testButton && <div className="flex items-center gap-3">{testButton}</div>
           )}

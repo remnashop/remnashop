@@ -172,6 +172,8 @@ msg-subscription-card =
     }
     • <b>Valid until</b>: { $expire_at }
     </blockquote>
+
+    { $auto_renew }
 msg-referrals =
     <b>👥 Invite friends</b>
 
@@ -336,6 +338,7 @@ ntf-purchase =
     .limit-reached = ❌ You've reached the subscription limit.
     .method-unavailable = ❌ This payment method is unavailable right now.
     .discount-used = ⚠️ The discount has already been used — check the new price.
+    .price-changed = ⚠️ The price has changed — pick the duration again to see the new total.
     .failed = ❌ Couldn't create the payment. Please try again later.
     .no-plans = ❌ No plans are available.
     .no-methods = ❌ No payment methods are available.
@@ -411,12 +414,30 @@ msg-purchase-confirm =
     { $plan_changed_notice }
 
     { $terms_notice }
+
+    { $recurring_notice }
 frg-purchase-change-unlimited-notice = { $kind ->
         [credit] <i>⚠️ Your current subscription will be <u>replaced</u> with the chosen plan. What you paid for your current unlimited subscription is already taken off the price.</i>
        *[other] <i>⚠️ Your current subscription will be <u>replaced</u> with the chosen plan. The unused part of your payment <u>is not carried over</u>.</i>
     }
 frg-purchase-change-credit-days-notice = <i>⚠️ Your current subscription will be <u>replaced</u> with the chosen plan. The unused part of your payment adds <b>{ $days }</b> to the new term.</i>
 frg-purchase-terms-notice = <i>By paying you accept the terms — /terms</i>
+frg-subscription-recurring = <b>Auto-renewal enabled</b>: up to { $amount } { $currency } for every { $days } days. Use the button below to stop future charges.
+frg-subscription-recurring-off = <b>Auto-renewal disabled</b>. Enabling it authorizes automatic charges of up to { $amount } { $currency } for every { $days } days before the subscription expires.
+frg-subscription-recurring-paused = <b>Auto-renewal paused</b>: automatic charges are currently unavailable. Your preference is saved; use the button below to opt out.
+btn-recurring =
+    .consent-off = [ ] Auto-renewal
+    .consent-on = [x] Auto-renewal
+    .terms = Renewal terms
+    .enable = I agree, enable auto-renewal
+    .disable = Disable auto-renewal
+ntf-recurring =
+    .consent-required = Consent to auto-renewal to pay with YooKassa, or choose another payment method.
+    .terms-changed = Payment or renewal terms changed. Select a duration and confirm your consent again.
+    .payment-in-progress = An automatic renewal payment for this subscription is already in progress. Wait for its result instead of paying again.
+    .enabled = Auto-renewal enabled.
+    .disabled = Auto-renewal disabled. No new charges will be sent; a payment already submitted may still complete.
+    .unavailable = Auto-renewal is unavailable. Pay for the subscription with YooKassa or contact support.
 msg-purchase-pay = Your order is ready. Tap the button below to pay.
 msg-purchase-link-choice = You already have a { $plan_name } subscription. Renew it or buy another one?
 
@@ -636,3 +657,16 @@ inline-invite =
 btn-inline-invite =
     .start = Join
     .start-icon = 🚀
+
+frg-purchase-recurring-required = This payment method is available with auto-renewal only. Read the terms and give separate consent before paying.
+
+frg-subscription-recurring-retrying = <b>Auto-renewal enabled, awaiting another payment attempt</b>: up to { $amount } { $currency } every { $days } days.
+frg-subscription-recurring-pending = <b>Automatic payment is being processed</b>. Awaiting YooKassa confirmation. Disabling stops new charges; a submitted payment may still complete.
+frg-subscription-recurring-in-flight = <b>The automatic payment was sent to YooKassa</b> and may still complete. Disabling auto-renewal stops only future charges.
+frg-subscription-recurring-reason = Reason: { $reason }.
+frg-subscription-recurring-next-retry = Next payment attempt: { $when } UTC.
+frg-subscription-recurring-next-check = Next payment check: { $when } UTC.
+
+frg-purchase-recurring-preserved = A one-time payment does not cancel previously enabled auto-renewal. You can disable it in your subscription settings.
+
+frg-purchase-recurring-plan-change = Changing the plan disables auto-renewal of the previous subscription. The new plan requires separate consent.

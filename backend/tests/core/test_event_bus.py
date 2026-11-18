@@ -40,6 +40,13 @@ from app.modules.oauth.events import (
     OAuthLoginSucceededEvent,
 )
 from app.modules.promocodes.events import PromocodeDiscountExpiringEvent
+from app.modules.recurring_payments.events import (
+    RecurringPaymentExhaustedEvent,
+    RecurringPaymentFailedEvent,
+    RecurringPaymentManagedEvent,
+    RecurringPaymentPausedEvent,
+    RecurringPaymentUpcomingEvent,
+)
 from app.modules.referrals.events import (
     InviteeRewardIssuedEvent,
     ReferralAttachedEvent,
@@ -119,6 +126,33 @@ _REGISTERED_EVENTS: dict[str, BaseEvent] = {
             gateway_type="YOOKASSA",
             amount="5.00",
             currency="USD",
+        ),
+        RecurringPaymentUpcomingEvent(
+            user_id=1,
+            subscription_id=1,
+            amount="500",
+            currency="RUB",
+            scheduled_at="2026-11-15T12:00:00+00:00",
+        ),
+        RecurringPaymentFailedEvent(
+            user_id=1,
+            subscription_id=1,
+            order_id=1,
+            amount="500",
+            currency="RUB",
+            reason="insufficient_funds",
+            next_attempt_at="2026-11-15T13:00:00+00:00",
+            attempt=1,
+        ),
+        RecurringPaymentPausedEvent(user_id=1, subscription_id=1, reason="merchant_unavailable"),
+        RecurringPaymentExhaustedEvent(user_id=1, subscription_id=1, reason="retries_exhausted"),
+        RecurringPaymentManagedEvent(
+            actor=_USER,
+            target=_TARGET,
+            subscription_id=1,
+            action="check",
+            order_id=1,
+            previous_reason="pending_timeout",
         ),
         TransactionCanceledEvent(order_id=1, user_id=1),
         TransactionExpiredEvent(order_id=1, user_id=1),

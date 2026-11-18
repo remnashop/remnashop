@@ -8,6 +8,8 @@ export interface Gateway {
   is_configured: boolean;
   /** current state of the gateway's boolean settings, the only readable ones */
   flags: Record<string, boolean>;
+  // every non-secret setting as stored
+  values: Record<string, string>;
   /** offered in the bot and Mini App sessions */
   telegram_enabled: boolean;
   /** offered in the cabinet opened in a browser */
@@ -16,12 +18,15 @@ export interface Gateway {
 
 export type GatewayChannels = Partial<Pick<Gateway, "telegram_enabled" | "cabinet_enabled">>;
 
-export type GatewayFieldKind = "text" | "secret" | "number" | "boolean";
+export type GatewayFieldKind = "text" | "secret" | "number" | "boolean" | "choice";
 
 export interface GatewayFieldSpec {
   key: string;
   kind: GatewayFieldKind;
   required: boolean;
+  options: string[];
+  /** hidden while another field holds this value */
+  hidden_when: { field: string; value: string } | null;
 }
 
 export interface GatewayCatalogEntry {

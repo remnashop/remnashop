@@ -3,10 +3,17 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.cli.restore_backup import format_provenance_message, list_database_backups, run_restore
+from app.cli.restore_backup import (
+    format_provenance_message,
+    list_database_backups,
+    pause_auto_renewal,
+    run_restore,
+)
 from app.core.config import AppConfig
+from app.core.enums import PaymentGatewayType
 from app.modules.backups import RestoreNotStartedError
 from app.modules.backups.provenance import ProvenanceResult, ProvenanceStatus
+from app.modules.gateways import GatewayRepository
 
 
 def test_list_database_backups_orders_newest_first(tmp_path: Path) -> None:
@@ -144,3 +151,12 @@ async def test_run_restore_that_never_started_leaves_no_trace(
 
     record_mock.assert_not_awaited()
     assert "left as it was" in capsys.readouterr().out
+
+
+async def test_restore_switches_yookassa_to_single(session) -> None:  # type: ignore[no-untyped-def]
+    repository = GatewayRepository(session)
+    await repository.update_settings(PaymentGatewayType.YOOKASSA, {"payment_mode": "both"})
+    assert await pause_auto_renewal(session) is True
+    settings = await repository.get_raw_settings(PaymentGatewayType.YOOKASSA)
+    assert settings["payment_mode"] == "single"
+    assert await pause_auto_renewal(session) is False

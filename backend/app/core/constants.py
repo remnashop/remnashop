@@ -201,3 +201,5 @@ DEFAULT_UNLIMITED_REWARD_DAYS: Final[int] = 365
 
 # an unlimited (0-day) order's paid coverage, long enough to outlast any report
 UNLIMITED_COVERAGE_DAYS: Final[int] = 36500
+# sha256 hex of the auto-renewal terms a customer saw
+RECURRING_TERMS_ID_PATTERN: Final[str] = r"^[0-9a-f]{64}$"

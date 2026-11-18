@@ -41,6 +41,7 @@ from app.modules.transactions.usecases import (
 )
 from tests.fakes.dispatch import RecordingDispatch
 from tests.fakes.events import RecordingEventPublisher
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.modules.subscriptions.factories import make_plan_snapshot
 
 _confirm_stars = confirm_stars_payment_task.original_func.__dishka_orig_func__
@@ -267,7 +268,13 @@ async def test_reconcile_paid_transactions_redispatches_when_no_subscription_is_
     dispatch = RecordingDispatch()
 
     await ReconcilePaidTransactionsUseCase(
-        transaction_repository, idempotency_repository, uow, dispatch, event_publisher, redis
+        transaction_repository,
+        idempotency_repository,
+        uow,
+        dispatch,
+        event_publisher,
+        redis,
+        make_recurring_lifecycle(transaction_repository.session),
     ).system(ReconcilePaidTransactionsDto(grace_period=timedelta(seconds=0)))
 
     assert len(dispatch.messages) == 1
@@ -310,7 +317,13 @@ async def test_reconcile_paid_transactions_skips_when_a_subscription_is_already_
     dispatch = RecordingDispatch()
 
     await ReconcilePaidTransactionsUseCase(
-        transaction_repository, idempotency_repository, uow, dispatch, event_publisher, redis
+        transaction_repository,
+        idempotency_repository,
+        uow,
+        dispatch,
+        event_publisher,
+        redis,
+        make_recurring_lifecycle(transaction_repository.session),
     ).system(ReconcilePaidTransactionsDto(grace_period=timedelta(seconds=0)))
 
     assert dispatch.messages == []
@@ -337,7 +350,13 @@ async def test_reconcile_paid_transactions_ignores_orders_that_are_not_paid(
     dispatch = RecordingDispatch()
 
     await ReconcilePaidTransactionsUseCase(
-        transaction_repository, idempotency_repository, uow, dispatch, event_publisher, redis
+        transaction_repository,
+        idempotency_repository,
+        uow,
+        dispatch,
+        event_publisher,
+        redis,
+        make_recurring_lifecycle(transaction_repository.session),
     ).system(ReconcilePaidTransactionsDto(grace_period=timedelta(seconds=0)))
 
     assert dispatch.messages == []
@@ -399,14 +418,26 @@ async def test_reconcile_paid_transactions_does_not_redispatch_after_idempotency
     dispatch = RecordingDispatch()
 
     await ReconcilePaidTransactionsUseCase(
-        transaction_repository, idempotency_repository, uow, dispatch, event_publisher, redis
+        transaction_repository,
+        idempotency_repository,
+        uow,
+        dispatch,
+        event_publisher,
+        redis,
+        make_recurring_lifecycle(transaction_repository.session),
     ).system(ReconcilePaidTransactionsDto(grace_period=timedelta(seconds=0)))
     async with uow:
         await PurchaseIdempotencyRepository(subscription_repository.session).delete_stale(
             datetime_now() + timedelta(days=1)
         )
     await ReconcilePaidTransactionsUseCase(
-        transaction_repository, idempotency_repository, uow, dispatch, event_publisher, redis
+        transaction_repository,
+        idempotency_repository,
+        uow,
+        dispatch,
+        event_publisher,
+        redis,
+        make_recurring_lifecycle(transaction_repository.session),
     ).system(ReconcilePaidTransactionsDto(grace_period=timedelta(seconds=0)))
 
     assert dispatch.messages == []
@@ -437,7 +468,13 @@ async def test_reconcile_paid_transactions_skips_orders_older_than_the_idempoten
     dispatch = RecordingDispatch()
 
     await ReconcilePaidTransactionsUseCase(
-        transaction_repository, idempotency_repository, uow, dispatch, event_publisher, redis
+        transaction_repository,
+        idempotency_repository,
+        uow,
+        dispatch,
+        event_publisher,
+        redis,
+        make_recurring_lifecycle(transaction_repository.session),
     ).system(ReconcilePaidTransactionsDto(grace_period=timedelta(seconds=0)))
 
     assert dispatch.messages == []
@@ -509,6 +546,7 @@ async def test_a_stuck_paid_order_is_reported_once_across_sweeps(
         RecordingDispatch(),
         event_publisher,
         redis,
+        make_recurring_lifecycle(transaction_repository.session),
     )
 
     for _ in range(2):

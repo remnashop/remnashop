@@ -80,6 +80,9 @@ export const OAuthCallbackPage = lazy(() =>
 export const TransactionsPage = lazy(() =>
   import("@pages/transactions/TransactionsPage").then((m) => ({ default: m.TransactionsPage })),
 );
+export const RecurringPaymentsPage = lazy(() =>
+  import("@pages/transactions/RecurringPaymentsPage").then((m) => ({ default: m.RecurringPaymentsPage })),
+);
 export const PlansPage = lazy(() => import("@pages/plans/PlansPage").then((m) => ({ default: m.PlansPage })));
 export const PricingPage = lazy(() => import("@pages/pricing/PricingPage").then((m) => ({ default: m.PricingPage })));
 export const ProfilePage = lazy(() => import("@pages/profile/ProfilePage").then((m) => ({ default: m.ProfilePage })));

@@ -8,6 +8,7 @@ from app.modules.gateways.field_catalog import (
     is_gateway_configured,
 )
 from app.modules.gateways.gateway_settings import (
+    RECURRING_TIMINGS,
     AntilopaySettings,
     AuraPaySettings,
     CisPaySettings,
@@ -33,11 +34,15 @@ from app.modules.gateways.gateway_settings import (
     WataSettings,
     YooKassaSettings,
     YooMoneySettings,
+    yookassa_payment_mode,
+    yookassa_recurring_enabled,
+    yookassa_recurring_required,
 )
 from app.modules.gateways.repository import GatewayRepository
 
 __all__ = [
     "GATEWAY_FIELD_CATALOG",
+    "RECURRING_TIMINGS",
     "REQUIRE_PAID_PURCHASE_FIELD_KEY",
     "VERIFY_IP_FIELD_KEY",
     "AntilopaySettings",
@@ -70,4 +75,7 @@ __all__ = [
     "gateway_flags",
     "get_gateways_providers",
     "is_gateway_configured",
+    "yookassa_payment_mode",
+    "yookassa_recurring_enabled",
+    "yookassa_recurring_required",
 ]

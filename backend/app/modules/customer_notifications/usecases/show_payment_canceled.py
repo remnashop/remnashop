@@ -26,7 +26,8 @@ class ShowPaymentCanceledUseCase(UseCase[ShowPaymentCanceledDto, None]):
     async def _execute(self, actor: Actor, data: ShowPaymentCanceledDto) -> None:
         async with self._uow:
             order = await self._transaction_repository.get_by_id(data.order_id)
-            if order.channel is not PurchaseChannel.BOT:
+            # an automatic renewal was never on the customer's screen
+            if order.channel is not PurchaseChannel.BOT or order.is_recurring:
                 return
             # the customer already moved on to another bot checkout
             if await self._transaction_repository.has_newer_order(

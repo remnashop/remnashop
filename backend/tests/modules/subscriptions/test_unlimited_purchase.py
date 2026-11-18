@@ -39,6 +39,7 @@ from app.modules.subscriptions.repository import SubscriptionRepository
 from app.modules.subscriptions.usecases import PurchaseSubscriptionUseCase
 from app.modules.users.dto import CreateUserDto, UserDto
 from app.modules.users.repository import UserRepository
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.remnawave import FakeUserStore
 from tests.modules.subscriptions.factories import make_eligibility, snapshot_from_plan
 
@@ -84,6 +85,7 @@ def _use_case(
         UserRepository(session),
         AppConfig.get(),
         SettingsRepository(session),
+        recurring_closer=make_recurring_lifecycle(session),
     )
 
 

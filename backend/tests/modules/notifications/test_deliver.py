@@ -6,7 +6,12 @@ from app.core.config import AppConfig
 from app.core.db.uow import UnitOfWork
 from app.core.enums import Locale, Role, SessionAudience
 from app.core.exceptions import RetryableTaskError
-from app.modules.notifications.dto import DeliverNotificationDto, PushMessage
+from app.modules.notifications.dto import (
+    DeliverNotificationDto,
+    NotificationChannel,
+    NotificationGroup,
+    PushMessage,
+)
 from app.modules.notifications.render import NotificationRenderer
 from app.modules.notifications.telegram_data import CardData
 from app.modules.notifications.usecases import DeliverNotificationUseCase
@@ -296,3 +301,48 @@ async def test_telegram_card_shows_the_customer_but_not_the_system_actor(
     shown, hidden = (text for _, text in telegram_calls)
     assert "• <b>name</b>: Ivan\n• <b>telegram-id</b>: <code>42</code>" in shown
     assert "SYSTEM" not in hidden
+
+
+_MONEY_PUSH = {NotificationGroup.MONEY.value: [NotificationChannel.PUSH.value]}
+
+
+def _recurring(event_type: str, reason: str) -> DeliverNotificationDto:
+    return DeliverNotificationDto(
+        event_type=event_type,
+        payload={"user_id": 1, "subscription_id": 2, "reason": reason},
+        actor_id=None,
+        ip_address=None,
+    )
+
+
+async def test_bank_decline_not_delivered_to_admins(
+    user_repository: UserRepository, uow: UnitOfWork, telegram_calls: list[tuple[int, str]]
+) -> None:
+    owner = await _user(user_repository, uow, "owner-r1", Role.OWNER)
+    async with uow:
+        await user_repository.set_notification_channels(owner.id, _MONEY_PUSH)
+    push = FakePush()
+    use_case = _use_case(user_repository, uow, push, "token")
+
+    await use_case.system(_recurring("RecurringPaymentFailedEvent", "insufficient_funds"))
+    await use_case.system(_recurring("RecurringPaymentUpcomingEvent", "none"))
+    await use_case.system(_recurring("RecurringPaymentPausedEvent", "customer_disabled"))
+    for reason in ("retries_exhausted", "card_expired", "fraud_suspected", "permission_revoked"):
+        await use_case.system(_recurring("RecurringPaymentExhaustedEvent", reason))
+
+    assert push.sent == []
+
+
+async def test_configuration_error_delivered_to_admins(
+    user_repository: UserRepository, uow: UnitOfWork, telegram_calls: list[tuple[int, str]]
+) -> None:
+    owner = await _user(user_repository, uow, "owner-r2", Role.OWNER)
+    async with uow:
+        await user_repository.set_notification_channels(owner.id, _MONEY_PUSH)
+    push = FakePush()
+
+    await _use_case(user_repository, uow, push, "token").system(
+        _recurring("RecurringPaymentPausedEvent", "provider_configuration_error")
+    )
+
+    assert {user_id for user_id, _ in push.sent} == {owner.id}

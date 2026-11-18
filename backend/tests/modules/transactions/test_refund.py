@@ -52,6 +52,7 @@ from app.modules.transactions.usecases import PreviewRefundUseCase, RefundTransa
 from app.modules.users import UserRepository
 from app.modules.users.dto import CreateUserDto, UserDto
 from tests.fakes.events import RecordingEventPublisher
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.remnawave import FakeUserStore
 from tests.modules.subscriptions.factories import (
     create_subscription,
@@ -180,6 +181,7 @@ def refund(
         events,
         uow,
         redis,
+        make_recurring_lifecycle(transaction_repository.session),
     )
 
 
@@ -684,6 +686,7 @@ async def race(
                     RecordingEventPublisher(),
                     UnitOfWork(refund_session),
                     redis,
+                    make_recurring_lifecycle(refund_session),
                 ),
                 purchase=PurchaseSubscriptionUseCase(
                     subscriptions,
@@ -697,6 +700,7 @@ async def race(
                     UserRepository(subscriptions.session),
                     AppConfig.get(),
                     SettingsRepository(purchase_session),
+                    recurring_closer=make_recurring_lifecycle(purchase_session),
                 ),
                 purchase_session=purchase_session,
             )

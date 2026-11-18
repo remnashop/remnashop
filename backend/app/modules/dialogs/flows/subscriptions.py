@@ -69,6 +69,7 @@ def register_subscriptions_metadata() -> None:
                 "expire_at",
                 "traffic_limit",
                 "device_limit",
+                "auto_renew",
             ),
             buttons=(
                 catalog.CatalogButton(

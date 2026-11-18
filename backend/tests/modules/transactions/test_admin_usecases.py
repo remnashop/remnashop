@@ -39,6 +39,7 @@ from app.modules.users import UserRepository
 from app.modules.users.dto import CreateUserDto, UserDto
 from tests.fakes.dispatch import RecordingDispatch
 from tests.fakes.events import RecordingEventPublisher
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.modules.subscriptions.factories import make_plan_snapshot
 
 
@@ -327,6 +328,7 @@ async def test_fulfill_transaction_marks_a_failed_order_paid_and_dispatches_it(
         events,
         uow,
         dispatch,
+        make_recurring_lifecycle(transaction_repository.session),
     )
 
     result = await use_case(
@@ -373,6 +375,7 @@ async def test_fulfill_response_hides_a_staff_owner_from_an_admin(
         event_publisher,
         uow,
         RecordingDispatch(),
+        make_recurring_lifecycle(transaction_repository.session),
     )
 
     result = await use_case(

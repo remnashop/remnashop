@@ -13,6 +13,9 @@ from app.core.db.models.event_log import EventLogEntry
 SHORT_RETENTION: Final[timedelta] = timedelta(days=90)
 SHORT_RETENTION_EVENT_TYPES: Final[frozenset[str]] = frozenset(
     {
+        # routine auto-renewal notices to one customer
+        "RecurringPaymentFailedEvent",
+        "RecurringPaymentUpcomingEvent",
         # subscriptions, as reported by the panel
         "SubscriptionDeviceAddedEvent",
         "SubscriptionDeviceRemovedEvent",

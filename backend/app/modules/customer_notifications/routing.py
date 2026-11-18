@@ -1,9 +1,16 @@
 from enum import auto
-from typing import Final, Optional
+from typing import Final, Mapping, Optional
 
 from app.core.enums import UpperStrEnum
 from app.modules.account_merge import AccountsMergedEvent
 from app.modules.cabinet_auth import CabinetNewDeviceSignInEvent
+from app.modules.recurring_payments import (
+    RecurringPaymentExhaustedEvent,
+    RecurringPaymentFailedEvent,
+    RecurringPaymentPausedEvent,
+    RecurringPaymentUpcomingEvent,
+    RecurringReason,
+)
 from app.modules.subscriptions import (
     SubscriptionAddOnGrantedEvent,
     SubscriptionChangedEvent,
@@ -37,6 +44,10 @@ ALWAYS_BOTH: Final[frozenset[str]] = frozenset(
         TransactionRefundedEvent,
         TransactionPartiallyRefundedEvent,
         PaidOrderNotFulfilledEvent,
+        RecurringPaymentUpcomingEvent,
+        RecurringPaymentFailedEvent,
+        RecurringPaymentPausedEvent,
+        RecurringPaymentExhaustedEvent,
         CabinetNewDeviceSignInEvent,
         AccountsMergedEvent,
     )
@@ -58,3 +69,16 @@ def channels_for(
     if telegram_id is not None:
         return [CustomerChannel.TELEGRAM]
     return [CustomerChannel.EMAIL] if email else []
+
+
+def should_notify_customer(event_type: str, args: Mapping[str, object]) -> bool:
+    if event_type not in {
+        RecurringPaymentFailedEvent.__name__,
+        RecurringPaymentPausedEvent.__name__,
+        RecurringPaymentExhaustedEvent.__name__,
+    }:
+        return True
+    try:
+        return RecurringReason(str(args.get("reason"))).policy.customer_notice
+    except ValueError:
+        return False

@@ -36,6 +36,7 @@ from app.modules.transactions.usecases import (
 from app.modules.users.dto import UpdateUserDto
 from tests.fakes.dispatch import RecordingDispatch
 from tests.fakes.events import RecordingEventPublisher
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.modules.subscriptions.factories import make_plan_snapshot
 
 _PAID = ProviderPayment(
@@ -138,6 +139,7 @@ async def _paid_while_order_expires(
         None,  # type: ignore[arg-type]
         uow,
         purchase_dispatch,
+        make_recurring_lifecycle(transaction_repository.session),
     )
     dto = HandleWebhookDto(
         gateway_type=PaymentGatewayType.YOOKASSA,
@@ -243,6 +245,7 @@ async def test_paid_that_keeps_losing_the_status_race_raises_for_redelivery(
         None,  # type: ignore[arg-type]
         uow,
         purchase_dispatch,
+        make_recurring_lifecycle(transaction_repository.session),
     )
     dto = HandleWebhookDto(
         gateway_type=PaymentGatewayType.YOOKASSA,
@@ -318,6 +321,7 @@ async def _report(
         publisher,
         uow,
         purchase_dispatch,
+        make_recurring_lifecycle(transaction_repository.session),
     )
     await use_case.system(
         HandleWebhookDto(

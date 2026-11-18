@@ -1,12 +1,15 @@
-from typing import Final, NewType, Optional, Self
+from typing import Any, Final, Literal, NewType, Optional, Self, cast
 
-from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 from app.core.enums import PaymentGatewayType
 from app.core.exceptions import PaymentGatewayError
 
 # digits as the admin typed them; a provider gets the exact text back
 NumericStr = NewType("NumericStr", str)
+
+# field metadata read by the dashboard catalog: hide the field while another one holds this value
+HIDDEN_WHEN_KEY: Final[str] = "hidden_when"
 
 
 class GatewaySettings(BaseModel):
@@ -31,11 +34,53 @@ class TelegramStarsSettings(GatewaySettings):
     require_paid_purchase: bool = False
 
 
+YooKassaPaymentMode = Literal["single", "recurring", "both"]
+
+
+def yookassa_payment_mode(values: dict[str, Any]) -> YooKassaPaymentMode:
+    mode = values.get("payment_mode")
+    if mode is not None:
+        return (
+            cast(YooKassaPaymentMode, mode) if mode in {"single", "recurring", "both"} else "single"
+        )
+    return "single"
+
+
+def yookassa_recurring_enabled(values: dict[str, Any]) -> bool:
+    return yookassa_payment_mode(values) != "single"
+
+
+def yookassa_recurring_required(values: dict[str, Any]) -> bool:
+    return yookassa_payment_mode(values) == "recurring"
+
+
+# auto-renewal timings a shop may tune: default, minimum, maximum
+RECURRING_TIMINGS: Final[dict[str, tuple[int, int, int]]] = {
+    "recurring_lead_minutes": (1440, 0, 1440),
+    "recurring_retry_minutes": (5, 1, 60),
+    "recurring_max_overdue_hours": (96, 1, 168),
+    "recurring_notice_lead_minutes": (2880, 0, 10080),
+}
+
+
+def _recurring_timing() -> Any:
+    return Field(default=None, json_schema_extra={HIDDEN_WHEN_KEY: ["payment_mode", "single"]})
+
+
 class YooKassaSettings(GatewaySettings):
     shop_id: str
     api_key: SecretStr
     vat_code: Optional[NumericStr] = None
     verify_ip: bool = True
+    payment_mode: YooKassaPaymentMode = "single"
+    recurring_lead_minutes: Optional[NumericStr] = _recurring_timing()
+    recurring_retry_minutes: Optional[NumericStr] = _recurring_timing()
+    recurring_max_overdue_hours: Optional[NumericStr] = _recurring_timing()
+    recurring_notice_lead_minutes: Optional[NumericStr] = _recurring_timing()
+
+    @property
+    def recurring_enabled(self) -> bool:
+        return self.payment_mode != "single"
 
 
 class YooMoneySettings(GatewaySettings):

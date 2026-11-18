@@ -14,6 +14,7 @@ from app.modules.subscriptions import PurchaseIdempotencyRepository, PurchaseSub
 from app.modules.transactions.dto import FulfillTransactionDto, TransactionWithUserDto
 from app.modules.transactions.events import TransactionFulfilledManuallyEvent
 from app.modules.transactions.fulfillment import dispatch_fulfillment
+from app.modules.transactions.ports import RecurringOrderHooks
 from app.modules.transactions.repository import TransactionRepository
 from app.modules.transactions.unpaid_orders import UNPAID_FINAL
 from app.modules.transactions.visibility import visible_transaction
@@ -31,12 +32,14 @@ class FulfillTransactionUseCase(UseCase[FulfillTransactionDto, TransactionWithUs
         event_publisher: EventPublisher,
         uow: UnitOfWork,
         purchase_dispatch: PurchaseSubscriptionDispatch,
+        recurring_hooks: RecurringOrderHooks,
     ) -> None:
         self._transaction_repository = transaction_repository
         self._idempotency_repository = idempotency_repository
         self._user_repository = user_repository
         self._event_publisher = event_publisher
         self._uow = uow
+        self._recurring_hooks = recurring_hooks
         self._purchase_dispatch = purchase_dispatch
 
     async def _execute(self, actor: Actor, data: FulfillTransactionDto) -> TransactionWithUserDto:
@@ -60,7 +63,9 @@ class FulfillTransactionUseCase(UseCase[FulfillTransactionDto, TransactionWithUs
             linked = await self._idempotency_repository.find_subscription_id(order.idempotency_key)
             if linked is not None:
                 # already provisioned, the reconciliation sweep just hasn't recorded it
-                await self._transaction_repository.mark_fulfilled(order.id, linked)
+                marked = await self._transaction_repository.mark_fulfilled(order.id, linked)
+                if marked is not None:
+                    await self._recurring_hooks.on_fulfilled(marked, linked)
             else:
                 if unpaid:
                     changed = await self._transaction_repository.mark_status_if(

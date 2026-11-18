@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.core.constants import RECURRING_TERMS_ID_PATTERN
 from app.core.enums import (
     Currency,
     DiscountSource,
@@ -31,6 +32,8 @@ class CreateCheckoutRequest(BaseModel):
     legal_locale: Optional[Locale] = None
     expected_price: Optional[Decimal] = None
     replaces_order_id: Optional[int] = None
+    recurring_consent: bool = False
+    recurring_terms_id: Optional[str] = Field(default=None, pattern=RECURRING_TERMS_ID_PATTERN)
 
     _legal_locale = field_validator("legal_locale", mode="before")(known_locale)
 
@@ -241,6 +244,8 @@ class PaymentMethodResponse(BaseModel):
     currency: Currency
     requires_email: bool
     asks_email: bool
+    recurring_available: bool = False
+    recurring_required: bool = False
 
 
 class PaymentMethodListResponse(BaseModel):

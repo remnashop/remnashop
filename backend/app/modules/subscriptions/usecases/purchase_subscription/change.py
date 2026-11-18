@@ -28,6 +28,7 @@ from app.modules.subscriptions.panel import (
     revert_panel_to_owner,
     subscription_row,
 )
+from app.modules.subscriptions.ports import RecurringPaymentCloser
 from app.modules.subscriptions.repository import SubscriptionRepository
 from app.modules.subscriptions.unlimited import expiry_after
 
@@ -50,6 +51,7 @@ class ChangePurchase:
         uow: UnitOfWork,
         event_publisher: EventPublisher,
         pricing_repository: PricingRepository,
+        recurring_closer: RecurringPaymentCloser,
         change_credit_calculator: ChangeCreditCalculator,
     ) -> None:
         self._subscription_repository = subscription_repository
@@ -58,6 +60,7 @@ class ChangePurchase:
         self._uow = uow
         self._event_publisher = event_publisher
         self._pricing_repository = pricing_repository
+        self._recurring_closer = recurring_closer
         self._change_credit_calculator = change_credit_calculator
 
     async def run(self, actor: Actor, data: PurchaseSubscriptionDto) -> SubscriptionDto:
@@ -106,6 +109,8 @@ class ChangePurchase:
             async with self._uow:
                 # a second plan change or a delete may have raced this one
 
+                # Keep order/mandate/subscription locking consistent with the debit worker.
+                await self._recurring_closer.close_for_plan_change(old.id)
                 locked_old = await self._subscription_repository.get_by_id_for_update(old.id)
                 if locked_old.status is SubscriptionStatus.DELETED:
                     raise SupersededError(

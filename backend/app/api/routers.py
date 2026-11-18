@@ -47,6 +47,8 @@ from app.modules.plans.api import pricing_router as plans_pricing_router
 from app.modules.promocodes.api import admin_router as promocodes_admin_router
 from app.modules.promocodes.api import public_router as promocodes_public_router
 from app.modules.promocodes.api import user_router as promocodes_user_router
+from app.modules.recurring_payments.api import admin_router as recurring_payments_admin_router
+from app.modules.recurring_payments.api import public_router as recurring_payments_public_router
 from app.modules.referrals.api import admin_router as referrals_admin_router
 from app.modules.referrals.api import public_router as referrals_public_router
 from app.modules.referrals.api import user_router as referrals_user_router
@@ -122,6 +124,8 @@ ROUTERS: Final[tuple[APIRouter, ...]] = (
     transactions_admin_router,
     transactions_public_router,
     transactions_router,
+    recurring_payments_admin_router,
+    recurring_payments_public_router,
     api_tokens_admin_router,
     translations_admin_router,
     translations_locales_router,
@@ -149,6 +153,7 @@ CABINET_ROUTERS: Final[tuple[APIRouter, ...]] = (
     subscriptions_public_router,
     subscriptions_own_router,
     transactions_public_router,
+    recurring_payments_public_router,
     customer_notifications_public_router,
     notifications_public_router,
 )

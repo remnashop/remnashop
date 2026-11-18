@@ -21,6 +21,7 @@ from app.core.constants import (
 from app.core.db.uow import UnitOfWork
 from app.core.enums import (
     Locale,
+    PaymentGatewayType,
     PaymentOutcome,
     PurchaseChannel,
     SessionAudience,
@@ -40,9 +41,14 @@ from app.modules.customer_notifications.links import customer_url
 from app.modules.customer_notifications.metrics import CUSTOMER_NOTIFICATIONS
 from app.modules.customer_notifications.render_args import customer_render_args
 from app.modules.customer_notifications.repository import CustomerNotificationRepository
-from app.modules.customer_notifications.routing import CustomerChannel, channels_for
+from app.modules.customer_notifications.routing import (
+    CustomerChannel,
+    channels_for,
+    should_notify_customer,
+)
 from app.modules.customer_notifications.waitlist import PAYMENTS_RESTORED
 from app.modules.email import SendEmailDispatch, load_email_brand, render_email
+from app.modules.gateways import GatewayRepository, yookassa_recurring_enabled
 from app.modules.notifications import (
     BotTokenSource,
     NotificationRenderer,
@@ -54,6 +60,12 @@ from app.modules.notifications import (
     telegram_card,
 )
 from app.modules.plans import PlanRepository
+from app.modules.recurring_payments import (
+    RecurringPaymentExhaustedEvent,
+    RecurringPaymentFailedEvent,
+    RecurringPaymentPausedEvent,
+    RecurringPaymentRepository,
+)
 from app.modules.settings import SettingsRepository
 from app.modules.subscriptions import (
     SubscriptionChangedEvent,
@@ -71,7 +83,10 @@ from app.modules.subscriptions import (
     TorrentBlockerReportEvent,
     current_plan_snapshots,
 )
-from app.modules.transactions import PaidOrderNotFulfilledEvent, TransactionRepository
+from app.modules.transactions import (
+    PaidOrderNotFulfilledEvent,
+    TransactionRepository,
+)
 from app.modules.users import UserDto, UserRepository
 
 # outlives the sweep's retries of one outbox row
@@ -94,6 +109,9 @@ _RENEWABLE: Final[frozenset[str]] = frozenset(
         SubscriptionExpiredEvent,
         SubscriptionExpiredAgoEvent,
         SubscriptionTrafficLimitedEvent,
+        RecurringPaymentFailedEvent,
+        RecurringPaymentPausedEvent,
+        RecurringPaymentExhaustedEvent,
     )
 )
 # the subscription page is where a customer connects a device
@@ -105,6 +123,9 @@ _SUPPORT: Final[frozenset[str]] = frozenset(
         SubscriptionNotConnectedEvent.__name__,
         TorrentBlockerReportEvent.__name__,
         PaidOrderNotFulfilledEvent.__name__,
+        RecurringPaymentFailedEvent.__name__,
+        RecurringPaymentPausedEvent.__name__,
+        RecurringPaymentExhaustedEvent.__name__,
         CabinetNewDeviceSignInEvent.__name__,
     }
 )
@@ -142,6 +163,8 @@ class NotifyCustomerUseCase(UseCase[NotifyCustomerDto, None]):
         redis: Redis,
         config: AppConfig,
         uow: UnitOfWork,
+        recurring_repository: RecurringPaymentRepository,
+        gateway_repository: GatewayRepository,
     ) -> None:
         self._user_repository = user_repository
         self._settings_repository = settings_repository
@@ -159,6 +182,8 @@ class NotifyCustomerUseCase(UseCase[NotifyCustomerDto, None]):
         self._redis = redis
         self._config = config
         self._uow = uow
+        self._recurring_repository = recurring_repository
+        self._gateway_repository = gateway_repository
 
     async def _execute(self, actor: Actor, data: NotifyCustomerDto) -> None:
         # the outbox row is already processed, so only a retry can save a failed run;
@@ -168,10 +193,28 @@ class NotifyCustomerUseCase(UseCase[NotifyCustomerDto, None]):
         except Exception as error:
             raise RetryableTaskError(str(error)) from error
 
+    async def _renews_automatically(self, data: NotifyCustomerDto) -> bool:
+        # "renew in advance" is wrong advice while auto-renewal will charge for it
+        if data.event_type != SubscriptionExpiringEvent.__name__ or data.subscription_id is None:
+            return False
+        async with self._uow:
+            mandate = await self._recurring_repository.get(data.subscription_id)
+            if mandate is None or not mandate.enabled or mandate.last_error is not None:
+                return False
+            gateway = await self._gateway_repository.get_by_type(PaymentGatewayType.YOOKASSA)
+        return bool(gateway.is_active and yookassa_recurring_enabled(gateway.values))
+
     async def _notify(self, data: NotifyCustomerDto) -> None:
+        if not should_notify_customer(data.event_type, data.args):
+            return
         async with self._uow:
             user = await self._user_repository.find_by_id(data.user_id)
-        if user is None or user.is_blocked or user.deleted_at is not None:
+        if (
+            user is None
+            or user.is_blocked
+            or user.deleted_at is not None
+            or await self._renews_automatically(data)
+        ):
             return
         if data.event_type in _TRIAL_AWARE and data.subscription_id is not None:
             subscription = await self._find_subscription(data.subscription_id)

@@ -31,6 +31,7 @@ COALESCED_EVENT_TYPES: Final[frozenset[str]] = frozenset(
         "OAuthLoginFailedEvent",
         "PanelLoginFailedEvent",
         "TorrentBlockerReportEvent",
+        "RecurringPaymentPausedEvent",
     }
 )
 COALESCE_WINDOW_S: Final[int] = 300
@@ -84,6 +85,8 @@ NOTIFICATION_GROUPS: Final[dict[NotificationGroup, frozenset[str]]] = {
             "TransactionPartiallyRefundedEvent",
             "TransactionFulfilledManuallyEvent",
             "PaidOrderNotFulfilledEvent",
+            "RecurringPaymentPausedEvent",
+            "RecurringPaymentExhaustedEvent",
             "SubscriptionChangedEvent",
         }
     ),

@@ -29,6 +29,7 @@ from app.modules.passkeys import get_passkeys_providers
 from app.modules.plans import get_plans_providers
 from app.modules.pricing import get_pricing_providers
 from app.modules.promocodes import get_promocodes_providers
+from app.modules.recurring_payments import get_recurring_payments_providers
 from app.modules.referrals import get_referrals_providers
 from app.modules.settings import get_settings_providers
 from app.modules.subscriptions import get_subscriptions_providers
@@ -66,6 +67,7 @@ def get_module_providers() -> list[Provider]:
         *get_event_log_providers(),
         *get_gateways_providers(),
         *get_transactions_providers(),
+        *get_recurring_payments_providers(),
         *get_api_tokens_providers(),
         *get_translations_providers(),
         *get_dialogs_providers(),

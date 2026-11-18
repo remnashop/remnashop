@@ -14,6 +14,7 @@ from app.modules.subscriptions import (
 from app.modules.transactions.dto import ReconcilePaidTransactionsDto, TransactionDto
 from app.modules.transactions.events import PaidOrderNotFulfilledEvent
 from app.modules.transactions.fulfillment import dispatch_fulfillment
+from app.modules.transactions.ports import RecurringOrderHooks
 from app.modules.transactions.repository import RECONCILE_WINDOW, TransactionRepository
 
 
@@ -28,10 +29,12 @@ class ReconcilePaidTransactionsUseCase(UseCase[ReconcilePaidTransactionsDto, Non
         purchase_dispatch: PurchaseSubscriptionDispatch,
         event_publisher: EventPublisher,
         redis: Redis,
+        recurring_hooks: RecurringOrderHooks,
     ) -> None:
         self._transaction_repository = transaction_repository
         self._idempotency_repository = idempotency_repository
         self._uow = uow
+        self._recurring_hooks = recurring_hooks
         self._purchase_dispatch = purchase_dispatch
         self._event_publisher = event_publisher
         self._redis = redis
@@ -50,7 +53,9 @@ class ReconcilePaidTransactionsUseCase(UseCase[ReconcilePaidTransactionsDto, Non
                     order.idempotency_key
                 )
                 if linked is not None:
-                    await self._transaction_repository.mark_fulfilled(order.id, linked)
+                    marked = await self._transaction_repository.mark_fulfilled(order.id, linked)
+                    if marked is not None:
+                        await self._recurring_hooks.on_fulfilled(marked, linked)
             if linked is not None:
                 continue
 

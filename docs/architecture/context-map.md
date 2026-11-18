@@ -26,6 +26,7 @@ What each module in `backend/app/modules/*` owns, and how they actually depend o
 | `promocodes` | Supporting | Discount codes, redemption |
 | `referrals` | Supporting | Two-level referral program — attribution, points ledger, reward payout (including granting reward subscriptions) |
 | `transactions` | Core | Checkout orchestration — turns a plan + gateway selection into a subscription purchase; the gateway adapters (`transactions/gateways/`), their webhooks and admin test payments |
+| `recurring_payments` | Core | YooKassa auto-renewal: the per-subscription mandate and its state machine (`transitions.py`, applied under lock by `lifecycle.py`), the customer's consent journal, the debit worker (reserve an order, submit, poll), the customer's own toggle and the admin list and actions |
 | `cabinet_auth` | Generic | Customer sign-in for the web cabinet (`/cabinet/*`): Mini App `initData`, bot deeplink, Telegram/Google/Yandex OAuth, email codes; also OAuth sign-in for the dashboard (`audience` field); `CABINET`-audience sessions |
 | `identity_links` | Supporting | A signed-in customer links Telegram, OAuth or an email to their own account; a key owned by another account leads to a confirmed merge through `account_merge` |
 | `account_merge` | Supporting | Admin merge of two user accounts: per-conflict choices, child rows moved by one repository; publishes `AccountsMergedEvent` |
@@ -51,12 +52,13 @@ Core/Supporting/Generic is a DDD strategic classification, not enforced anywhere
 Real cross-module edges (`users` omitted), all through the target module's public `__init__.py`, from grepping `app.modules.*` imports:
 
 ```
-customer_notifications -> account_merge, cabinet_auth, email, notifications, promocodes, referrals, settings, subscriptions, transactions
+customer_notifications -> account_merge, cabinet_auth, email, notifications, promocodes, recurring_payments, referrals, settings, subscriptions, transactions
 overview      -> api_tokens, backups, broadcasts, email, event_log, notifications, plans, pricing, settings, subscriptions, transactions
 cabinet_auth  -> access, auth, blacklist, email, legal, oauth, settings
 identity_links -> account_merge, auth, blacklist, cabinet_auth, email, oauth, settings
 analytics     -> advertising, pricing, promocodes, referrals, subscriptions, transactions
 transactions  -> gateways, legal, plans, pricing, settings, subscriptions
+recurring_payments -> gateways, plans, settings, subscriptions, transactions, users
 referrals     -> plans, pricing, settings, subscriptions, transactions
 loyalty       -> account_merge, plans, pricing, subscriptions, transactions
 broadcasts    -> email, promocodes, settings, subscriptions, translations
@@ -66,7 +68,7 @@ advertising   -> pricing, settings, transactions
 access        -> advertising, settings
 oauth         -> auth, blacklist, settings
 passkeys      -> auth, settings
-notifications -> promocodes, settings, subscriptions, transactions, translations
+notifications -> promocodes, recurring_payments, settings, subscriptions, transactions, translations
 plans         -> pricing, settings
 dialogs       -> banners, translations
 auth, email   -> settings
@@ -80,7 +82,7 @@ account_merge, announcements, gateways -> users
 api_tokens, backups, blacklist, connect_guide, pricing, translations -> (nothing)
 ```
 
-**There are no cycles.** The commerce core is layered `pricing → plans → subscriptions → transactions → referrals/promocodes`, each module importing only the ones to its left. Where a lower module needs something a higher one owns, it declares a port in its own `ports.py` (exported from `__init__.py`) and the higher module implements it through DI — e.g. `users.SessionRevoker`/`SubscriptionRevoker`/`PasskeyRevoker`/`OAuthIdentityLookup`/`SignInMethodCheck`/`PromocodeLiveness`, `auth.PasskeyCounter`, `plans.PlanReferenceCleaner`/`AnchorAmountRescaler`/`LoyaltyThresholdRescaler`, `subscriptions.ReferrerLookup`/`SpentPurchaseDiscount`/`OrderFailer`/`OpenOrderCounter`, `transactions.PromocodeLiveness`/`PaymentsRestoredNotifier`, `settings.OidcIdentityCleaner`/`AudienceSessionRevoker`, `translations.DefaultBannerSeed`/`BotCommandsSync`. `core/ports.py` keeps only infrastructure ports (`EventPublisher`, `OutboxEntryDispatch`, `BotSignals`, the translator protocols). The less obvious ones:
+**There are no cycles.** The commerce core is layered `pricing → plans → subscriptions → transactions → referrals/promocodes`, each module importing only the ones to its left. Where a lower module needs something a higher one owns, it declares a port in its own `ports.py` (exported from `__init__.py`) and the higher module implements it through DI — e.g. `users.SessionRevoker`/`SubscriptionRevoker`/`PasskeyRevoker`/`OAuthIdentityLookup`/`SignInMethodCheck`/`PromocodeLiveness`, `auth.PasskeyCounter`, `plans.PlanReferenceCleaner`/`AnchorAmountRescaler`/`LoyaltyThresholdRescaler`, `subscriptions.ReferrerLookup`/`SpentPurchaseDiscount`/`OrderFailer`/`OpenOrderCounter`, `transactions.PromocodeLiveness`/`PaymentsRestoredNotifier`/`RecurringCheckout`/`RecurringOrderHooks` (synchronous: they run in the transaction that moved the order's status, under its row lock), `subscriptions.RecurringPaymentCloser`, `recurring_payments.RecurringTermsTexts`, `settings.OidcIdentityCleaner`/`AudienceSessionRevoker`, `translations.DefaultBannerSeed`/`BotCommandsSync`. `core/ports.py` keeps only infrastructure ports (`EventPublisher`, `OutboxEntryDispatch`, `BotSignals`, the translator protocols). The less obvious ones:
 
 - `ReferrerLookup` — `subscriptions`' `PurchaseEligibility` asks whether a user was invited (INVITED plans); `referrals` aliases its `ReferralRepository` to it.
 - `BotCommandsSync` — `translations` re-pushes the bot's command menu after an edit or a locale change; `settings` implements it with `BotCommandsPusher`, since only it holds the bot token.

@@ -134,6 +134,11 @@ def assert_valid_bot_html(message_id: str, value: str) -> None:
 _SINGLE_LINE_MESSAGE_IDS: Final[frozenset[str]] = frozenset({"command"})
 
 
+# the bot shows these as one message: Telegram's 4096 characters, minus room for the
+# values substituted into them
+_MAX_LENGTH: Final[dict[str, int]] = {"recurring-terms-text": 3500}
+
+
 def assert_translation_value(message_id: str, value: str, default_value: str) -> None:
     """A translator may rephrase a string, reorder its variables and rewrite its
     plural or value variants, but not reach for anything the shipped string
@@ -143,6 +148,12 @@ def assert_translation_value(message_id: str, value: str, default_value: str) ->
         raise ValidationError(
             "Bot command descriptions cannot contain newlines",
             code=ErrorCode.TRANSLATION_HAS_NEWLINES,
+        )
+    limit = _MAX_LENGTH.get(message_id)
+    if limit is not None and len(value) > limit:
+        raise ValidationError(
+            f"'{message_id}' is limited to {limit} characters",
+            code=ErrorCode.TRANSLATION_TOO_LONG,
         )
     allowed_variables = placeable_variables(default_value)
     disallowed = _find_disallowed(

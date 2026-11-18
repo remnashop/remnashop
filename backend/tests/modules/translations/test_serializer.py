@@ -269,3 +269,12 @@ def test_bot_command_descriptions_stay_single_line() -> None:
 def test_every_shipped_value_passes_as_its_own_edit(path: Path) -> None:
     for message_id, _, value in _parse_seed_file(path):
         assert_translation_value(message_id, value, value)
+
+
+def test_the_auto_renewal_terms_must_fit_one_bot_message() -> None:
+    assert_translation_value("recurring-terms-text", "x" * 3500, "x")
+    with pytest.raises(ValidationError) as refused:
+        assert_translation_value("recurring-terms-text", "x" * 3501, "x")
+    assert refused.value.code is ErrorCode.TRANSLATION_TOO_LONG
+    # other keys keep no such limit
+    assert_translation_value("recurring-terms-summary", "x" * 5000, "x")

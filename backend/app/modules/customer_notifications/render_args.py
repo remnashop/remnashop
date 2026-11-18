@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional, Union
 
 from app.core.enums import Locale
@@ -21,4 +22,14 @@ def customer_render_args(
         rendered["has_plan_name"] = "yes" if args.get("plan_name") else "no"
     if "amount" in args and "currency" in args:
         rendered["money"] = format_money(str(args["amount"]), str(args["currency"]), locale)
+    for key in ("scheduled_at", "next_attempt_at"):
+        value = rendered.get(key)
+        if isinstance(value, str) and value:
+            try:
+                instant = datetime.fromisoformat(value)
+                if instant.tzinfo is None:
+                    raise ValueError("A notification timestamp requires a timezone")
+                rendered[key] = instant.astimezone(timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
+            except ValueError:
+                rendered[key] = "—"
     return rendered

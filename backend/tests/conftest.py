@@ -74,6 +74,7 @@ from app.modules.users.repository import UserRepository
 from app.modules.users.stats_repository import UserStatsRepository
 from tests.fakes.container import make_test_container
 from tests.fakes.dispatch import RecordingDispatch
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.remnawave import FakeHwidStore, FakeUserStore, make_fake_remnawave_transport
 from tests.modules.subscriptions.factories import make_eligibility
 
@@ -265,6 +266,7 @@ def purchase_subscription_use_case(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
 

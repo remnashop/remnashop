@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db.models.payment_gateway import PaymentGateway
 from app.core.enums import PaymentGatewayType
 from app.modules.gateways.dto import PaymentGatewayDto, default_telegram_enabled
-from app.modules.gateways.field_catalog import gateway_flags, is_gateway_configured
+from app.modules.gateways.field_catalog import (
+    gateway_flags,
+    gateway_values,
+    is_gateway_configured,
+)
 
 
 class GatewayRepository:
@@ -26,6 +30,7 @@ class GatewayRepository:
             is_active=row.is_active,
             is_configured=is_gateway_configured(row.type, values),
             flags=gateway_flags(row.type, values),
+            values=gateway_values(row.type, values),
             telegram_enabled=row.telegram_enabled,
             cabinet_enabled=row.cabinet_enabled,
             created_at=row.created_at,
@@ -39,6 +44,7 @@ class GatewayRepository:
             is_active=False,
             is_configured=is_gateway_configured(gateway_type, {}),
             flags=gateway_flags(gateway_type, {}),
+            values=gateway_values(gateway_type, {}),
             telegram_enabled=default_telegram_enabled(gateway_type),
         )
 
