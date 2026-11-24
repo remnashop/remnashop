@@ -1819,103 +1819,103 @@
       "suggestions": {
         "TELEGRAM_STARS": {
           "name": "Telegram Stars",
-          "description": "Pay with Stars from your Telegram balance."
+          "description": "Got Telegram Stars? Use your balance to pay right in Telegram."
         },
         "YOOKASSA": {
           "name": "Card or SBP · YooKassa",
-          "description": "Pay by card or through your bank app. YooKassa shows the available options."
+          "description": "Pay with your usual bank card or use SBP in your banking app. Choose your preferred option at YooKassa checkout."
         },
         "YOOMONEY": {
           "name": "Bank card · YooMoney",
-          "description": "Pay by card on the YooMoney page."
+          "description": "Prefer paying by card? Open YooMoney, enter your card details and confirm the payment."
         },
         "VALUTIX": {
           "name": "Online payment · Valutix",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to Valutix for payment details and guidance on what to do next."
         },
         "CRYPTOMUS": {
           "name": "Cryptocurrency · Cryptomus",
-          "description": "Choose an available coin and network on the payment page."
+          "description": "Pay from your crypto wallet. Choose a coin and network on the invoice page to see the transfer details."
         },
         "HELEKET": {
           "name": "Cryptocurrency · Heleket",
-          "description": "Choose an available coin and network on the payment page."
+          "description": "Pay from your crypto wallet. Choose a coin and network on the invoice page to see the transfer details."
         },
         "CRYPTOPAY": {
           "name": "Cryptocurrency · CryptoPay",
-          "description": "Pay with cryptocurrency through Crypto Bot in Telegram."
+          "description": "Keep your crypto in Telegram? Open Crypto Bot to review and confirm your payment."
         },
         "FREEKASSA": {
           "name": "Online payment · FreeKassa",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to FreeKassa for payment details and guidance on what to do next."
         },
         "MULENPAY": {
           "name": "Card or SBP · MulenPay",
-          "description": "Available card and bank-app payment options are shown on the checkout page."
+          "description": "Card or banking app — choose what suits you. MulenPay will show the available options and guide you through payment."
         },
         "PAYMASTER": {
           "name": "Card or SBP · PayMaster",
-          "description": "Available card and bank-app payment options are shown on the checkout page."
+          "description": "Card or banking app — choose what suits you. PayMaster will show the available options and guide you through payment."
         },
         "PLATEGA": {
           "name": "Online payment · Platega",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to Platega for payment details and guidance on what to do next."
         },
         "ROBOKASSA": {
           "name": "Card or SBP · RoboKassa",
-          "description": "Available card and bank-app payment options are shown on the checkout page."
+          "description": "Card or banking app — choose what suits you. RoboKassa will show the available options and guide you through payment."
         },
         "URLPAY": {
           "name": "Card or SBP · URLPay",
-          "description": "Available card and bank-app payment options are shown on the checkout page."
+          "description": "Card or banking app — choose what suits you. URLPay will show the available options and guide you through payment."
         },
         "WATA": {
           "name": "Card or SBP · Wata",
-          "description": "Available card and bank-app payment options are shown on the checkout page."
+          "description": "Card or banking app — choose what suits you. Wata will show the available options and guide you through payment."
         },
         "ROLLYPAY": {
           "name": "Bank payment · RollyPay",
-          "description": "Pay in rubles. Follow the instructions on the payment page."
+          "description": "Pay in rubles through your bank. RollyPay will show you how to confirm the payment."
         },
         "ANTILOPAY": {
           "name": "Card or SBP · Antilopay",
-          "description": "Available card and bank-app payment options are shown on the checkout page."
+          "description": "Card or banking app — choose what suits you. Antilopay will show the available options and guide you through payment."
         },
         "AURAPAY": {
           "name": "Online payment · AuraPay",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to AuraPay for payment details and guidance on what to do next."
         },
         "PAY_2328": {
           "name": "Cryptocurrency · 2328.io",
-          "description": "Choose an available coin and network on the payment page."
+          "description": "Pay from your crypto wallet. Choose a coin and network on the invoice page to see the transfer details."
         },
         "CISPAY": {
           "name": "Online payment · cisPay",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to cisPay for payment details and guidance on what to do next."
         },
         "CLOUDPAYMENTS": {
           "name": "Card or SBP · CloudPayments",
-          "description": "Available card and bank-app payment options are shown on the checkout page."
+          "description": "Card or banking app — choose what suits you. CloudPayments will show the available options and guide you through payment."
         },
         "LAVA": {
           "name": "Online payment · Lava",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to Lava for payment details and guidance on what to do next."
         },
         "PAYPALYCH": {
           "name": "Online payment · Paypalych",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to Paypalych for payment details and guidance on what to do next."
         },
         "PAYPEAR": {
           "name": "Online payment · PayPear",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to PayPear for payment details and guidance on what to do next."
         },
         "RIOPAY": {
           "name": "Online payment · RioPay",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to RioPay for payment details and guidance on what to do next."
         },
         "SEVERPAY": {
           "name": "Online payment · SeverPay",
-          "description": "The payment method and instructions are shown on the next page."
+          "description": "Continue to SeverPay for payment details and guidance on what to do next."
         }
       }
     },
