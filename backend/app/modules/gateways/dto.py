@@ -4,7 +4,8 @@ from typing import Optional
 from pydantic import Field
 
 from app.core.dto import BaseDto, TimestampMixin
-from app.core.enums import PaymentGatewayType
+from app.core.enums import Locale, PaymentGatewayType
+from app.modules.gateways.presentation import GatewayText
 
 
 def default_telegram_enabled(gateway_type: PaymentGatewayType) -> bool:
@@ -17,6 +18,7 @@ class PaymentGatewayDto(BaseDto, TimestampMixin):
     order_index: int = 0
     is_active: bool = False
     is_configured: bool = False
+    presentation: dict[Locale, GatewayText] = Field(default_factory=dict)
     flags: dict[str, bool] = Field(default_factory=dict)
     splits_channels: bool = False
     telegram_enabled: bool = False
@@ -48,3 +50,10 @@ class UpdateGatewayChannelsDto:
     type: PaymentGatewayType
     telegram_enabled: Optional[bool] = None
     cabinet_enabled: Optional[bool] = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class UpdateGatewayPresentationDto:
+    type: PaymentGatewayType
+    presentation: dict[Locale, GatewayText]
+    client_ip: str

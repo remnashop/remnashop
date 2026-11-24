@@ -242,7 +242,13 @@ class OwnTransactionListResponse(BaseModel):
     page_size: int
 
 
+class PaymentMethodTextResponse(BaseModel):
+    name: str
+    description: str
+
+
 class PaymentMethodResponse(BaseModel):
+    presentation: dict[Locale, PaymentMethodTextResponse] = Field(default_factory=dict)
     gateway_type: PaymentGatewayType
     currency: Currency
     requires_email: bool

@@ -35,6 +35,7 @@ from app.modules.gateways.gateway_settings import (
     YooKassaSettings,
     YooMoneySettings,
 )
+from app.modules.gateways.presentation import GatewayText, gateway_text
 from app.modules.gateways.repository import GatewayRepository
 
 __all__ = [
@@ -50,6 +51,7 @@ __all__ = [
     "FreeKassaSettings",
     "GatewayRepository",
     "GatewaySettings",
+    "GatewayText",
     "HeleketSettings",
     "LavaSettings",
     "MulenPaySettings",
@@ -70,6 +72,7 @@ __all__ = [
     "YooMoneySettings",
     "default_telegram_enabled",
     "gateway_flags",
+    "gateway_text",
     "get_gateways_providers",
     "is_gateway_configured",
 ]

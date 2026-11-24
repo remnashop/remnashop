@@ -1,11 +1,35 @@
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from app.core.enums import PaymentGatewayType
+from app.core.enums import Locale, PaymentGatewayType
+from app.modules.gateways.presentation import (
+    GATEWAY_DESCRIPTION_MAX_LENGTH,
+    GATEWAY_NAME_MAX_LENGTH,
+)
+
+
+class GatewayTextResponse(BaseModel):
+    name: str
+    description: str
+
+
+class GatewayTextRequest(BaseModel):
+    name: str = Field(default="", max_length=GATEWAY_NAME_MAX_LENGTH)
+    description: str = Field(default="", max_length=GATEWAY_DESCRIPTION_MAX_LENGTH)
+
+    @field_validator("name", "description")
+    @classmethod
+    def single_line(cls, value: str) -> str:
+        return " ".join(value.split())
+
+
+class UpdateGatewayPresentationRequest(BaseModel):
+    presentation: dict[Locale, GatewayTextRequest]
 
 
 class GatewayResponse(BaseModel):
+    presentation: dict[Locale, GatewayTextResponse] = Field(default_factory=dict)
     type: PaymentGatewayType
     order_index: int
     is_active: bool

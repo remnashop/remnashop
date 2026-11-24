@@ -1,12 +1,13 @@
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.api.dependencies.admin import require_admin, require_admin_user
 from app.api.errors import error_responses
 from app.core.actor import Actor
 from app.core.config import AppConfig
 from app.core.enums import PaymentGatewayType
+from app.core.utils.http import resolve_client_ip
 from app.modules.gateways.api.schemas import (
     GatewayCatalogEntryResponse,
     GatewayCatalogResponse,
@@ -14,6 +15,7 @@ from app.modules.gateways.api.schemas import (
     GatewayListResponse,
     GatewayResponse,
     ReorderGatewaysRequest,
+    UpdateGatewayPresentationRequest,
     UpdateGatewayRequest,
     UpdateGatewaySettingsRequest,
 )
@@ -21,14 +23,17 @@ from app.modules.gateways.dto import (
     ReorderGatewaysDto,
     SetGatewayActiveDto,
     UpdateGatewayChannelsDto,
+    UpdateGatewayPresentationDto,
     UpdateGatewaySettingsDto,
 )
 from app.modules.gateways.field_catalog import GATEWAY_FIELD_CATALOG
+from app.modules.gateways.presentation import GatewayText
 from app.modules.gateways.usecases import (
     ListGatewaysUseCase,
     ReorderGatewaysUseCase,
     SetGatewayActiveUseCase,
     UpdateGatewayChannelsUseCase,
+    UpdateGatewayPresentationUseCase,
     UpdateGatewaySettingsUseCase,
 )
 from app.modules.users import UserDto
@@ -150,3 +155,26 @@ async def reorder_gateways(
     gateways = await use_case(actor, ReorderGatewaysDto(ordered_types=payload.types))
     items = [GatewayResponse.model_validate(gateway, from_attributes=True) for gateway in gateways]
     return GatewayListResponse(items=items, total=len(items))
+
+
+@router.put("/{gateway_type}/presentation", response_model=GatewayResponse)
+@inject
+async def update_gateway_presentation(
+    gateway_type: PaymentGatewayType,
+    payload: UpdateGatewayPresentationRequest,
+    request: Request,
+    use_case: FromDishka[UpdateGatewayPresentationUseCase],
+    actor: Actor = Depends(require_admin),
+) -> GatewayResponse:
+    gateway = await use_case(
+        actor,
+        UpdateGatewayPresentationDto(
+            type=gateway_type,
+            presentation={
+                locale: GatewayText(**text.model_dump())
+                for locale, text in payload.presentation.items()
+            },
+            client_ip=resolve_client_ip(request),
+        ),
+    )
+    return GatewayResponse.model_validate(gateway, from_attributes=True)

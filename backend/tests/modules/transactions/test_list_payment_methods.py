@@ -1,10 +1,12 @@
 import pytest
 
 from app.core.db.uow import UnitOfWork
-from app.core.enums import Currency, PaymentGatewayType, TransactionStatus
+from app.core.enums import Currency, Locale, PaymentGatewayType, TransactionStatus
+from app.modules.gateways.presentation import GatewayText
 from app.modules.gateways.repository import GatewayRepository
 from app.modules.settings.dto import UpdateShopSettingsDto
 from app.modules.settings.repository import SettingsRepository
+from app.modules.transactions.api.schemas import PaymentMethodResponse
 from app.modules.transactions.dto import ListPaymentMethodsDto
 from app.modules.transactions.repository import TransactionRepository
 from app.modules.transactions.usecases import ListPaymentMethodsUseCase
@@ -163,3 +165,19 @@ async def test_channel_flags_decide_where_a_gateway_is_offered(
         PaymentGatewayType.YOOKASSA
     ]
     assert await use_case(actor, _IN_CABINET) == []
+
+
+async def test_payment_methods_expose_only_customer_text(
+    actor, active_yookassa, use_case, gateway_repository, uow
+):
+    async with uow:
+        await gateway_repository.set_presentation(
+            PaymentGatewayType.YOOKASSA,
+            {Locale.RU: GatewayText(name="Карта или СБП", description="Через ЮKassa")},
+        )
+    methods = await use_case(actor, _IN_CABINET)
+    response = PaymentMethodResponse.model_validate(methods[0], from_attributes=True)
+    assert response.gateway_type == PaymentGatewayType.YOOKASSA
+    assert response.presentation[Locale.RU].name == "Карта или СБП"
+    assert "api_key" not in response.model_dump_json()
+    assert response.currency == Currency.RUB
