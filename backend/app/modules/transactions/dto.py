@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Final, Literal, Optional
@@ -15,7 +15,6 @@ from app.core.enums import (
     PurchaseType,
     TransactionStatus,
 )
-from app.modules.gateways import GatewayText
 from app.modules.subscriptions import PlanSnapshot, RollbackPreviewDto
 from app.modules.users import UserDto
 
@@ -55,7 +54,6 @@ class ListPaymentMethodsDto:
 
 @dataclass(frozen=True, kw_only=True)
 class PaymentMethodDto:
-    presentation: dict[Locale, GatewayText] = field(default_factory=dict)
     gateway_type: PaymentGatewayType
     currency: Currency
     requires_email: bool = False

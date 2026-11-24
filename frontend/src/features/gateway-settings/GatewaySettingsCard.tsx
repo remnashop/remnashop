@@ -28,7 +28,6 @@ import { Switch } from "@shared/ui/glass/Switch";
 import { Pressable } from "@shared/ui/Pressable";
 import { SaveFooter } from "@shared/ui/SaveFooter";
 
-import { GatewayPresentation } from "./GatewayPresentation";
 import { ChannelTiles } from "./ChannelTiles";
 import { GATEWAY_DOCS_URLS } from "./docs-links";
 import { GATEWAY_LOGOS } from "./logos";
@@ -343,7 +342,6 @@ export function GatewaySettingsCard({
             disabled={!canSetChannels}
             sharedShop={sharedShop}
           />
-          <GatewayPresentation gateway={gateway} onChanged={onChanged} />
           {flagFields.map((field) => renderFlag(field))}
           {webhookUrl !== null && (
             <Field label={t("settings.gateways.webhookLabel")} htmlFor={`gateway-${gateway.type}-webhook`}>

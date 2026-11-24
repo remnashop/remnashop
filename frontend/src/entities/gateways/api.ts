@@ -1,13 +1,7 @@
 import { apiGet, apiPatch, apiPost, apiPut } from "@shared/api/http";
 import type { ListResponse } from "@shared/api/http";
 
-export interface GatewayText {
-  name: string;
-  description: string;
-}
-
 export interface Gateway {
-  presentation?: Record<string, GatewayText>;
   type: string;
   order_index: number;
   is_active: boolean;
@@ -102,8 +96,4 @@ export function reorderGateways(types: string[]): Promise<Gateway[]> {
   return apiPost<ListResponse<Gateway>, { types: string[] }>("/gateways/actions/reorder", { types }).then(
     (response) => response.items,
   );
-}
-
-export function updateGatewayPresentation(type: string, presentation: Record<string, GatewayText>): Promise<Gateway> {
-  return apiPut<Gateway, { presentation: Record<string, GatewayText> }>(`/gateways/${type}/presentation`, { presentation });
 }

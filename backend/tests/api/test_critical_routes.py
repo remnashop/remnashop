@@ -485,26 +485,3 @@ async def test_anchor_switch_forbidden_for_plain_admin(
     )
 
     assert response.status_code == 403
-
-
-async def test_gateway_presentation_permissions_validation_and_reset(
-    client, owner_headers, admin_headers
-):
-    url = f"{API_V1}/gateways/YOOKASSA/presentation"
-    body = {"presentation": {"ru": {"name": "Карта или СБП", "description": "Через ЮKassa"}}}
-    denied = await client.put(url, json=body, headers=admin_headers)
-    assert denied.status_code == 403
-    response = await client.put(url, json=body, headers=owner_headers)
-    assert response.status_code == 200
-    assert response.json()["presentation"] == body["presentation"]
-    assert not response.json()["is_active"]
-    invalid = await client.put(
-        url, json={"presentation": {"ru": {"name": "x" * 65}}}, headers=owner_headers
-    )
-    assert invalid.status_code == 422
-    read = await client.get(f"{API_V1}/gateways", headers=owner_headers)
-    gateway = next(item for item in read.json()["items"] if item["type"] == "YOOKASSA")
-    assert gateway["presentation"] == body["presentation"]
-    reset = await client.put(url, json={"presentation": {}}, headers=owner_headers)
-    assert reset.status_code == 200
-    assert reset.json()["presentation"] == {}

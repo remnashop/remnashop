@@ -1,6 +1,6 @@
 import html
 from decimal import Decimal
-from typing import Any, Final, Optional
+from typing import Any, Optional
 
 from aiogram_dialog import DialogManager
 from dishka import FromDishka
@@ -8,9 +8,8 @@ from dishka.integrations.aiogram_dialog import inject
 from fluentogram import TranslatorHub, TranslatorRunner
 
 from app.core.constants import USER_KEY
-from app.core.enums import Currency, DiscountSource, Locale, PurchaseChannel, PurchaseType
+from app.core.enums import Currency, DiscountSource, PurchaseChannel, PurchaseType
 from app.core.exceptions import AppError
-from app.modules.gateways import GatewayText, gateway_text
 from app.modules.legal import ListVisibleLegalDocumentsUseCase
 from app.modules.subscriptions import (
     CatalogPlanDto,
@@ -42,34 +41,6 @@ from app.telegram.routers.purchase.handlers import (
     price_in,
     selected_plan,
 )
-
-METHOD_DESCRIPTIONS_MAX_LENGTH: Final[int] = 1800
-
-
-def _payment_text(method: dict[str, Any], locale: Locale) -> GatewayText:
-    return gateway_text(
-        {
-            Locale(k): GatewayText.model_validate(v)
-            for k, v in method.get("presentation", {}).items()
-        },
-        locale,
-    )
-
-
-def _method_descriptions(
-    methods: list[dict[str, Any]], locale: Locale, runner: TranslatorRunner
-) -> str:
-    lines: list[str] = []
-    for method in methods:
-        text = _payment_text(method, locale)
-        if text.description:
-            name = text.name or runner.get(f"gateway-name.{method['gateway_type']}")
-            line = f"{name}: {text.description}"
-            # leave room for the plan and discount in Telegram's message limit
-            if len("\n".join([*lines, line])) > METHOD_DESCRIPTIONS_MAX_LENGTH:
-                break
-            lines.append(line)
-    return "\n".join(lines)
 
 
 def _price(prices: dict[str, str], currency: str) -> str:
@@ -302,9 +273,6 @@ async def method_getter(
         "window_text": render_window_text(
             runner,
             "msg-purchase-method",
-            method_descriptions=_method_descriptions(
-                data.get("methods", []), dialog_manager.middleware_data[USER_KEY].language, runner
-            ),
             plan_details=_plan_details(runner, plan, format_period(runner, data["duration_days"]))
             if plan is not None
             else "",
@@ -320,10 +288,7 @@ async def method_getter(
                 "label": label_with_icon(
                     runner,
                     "btn-purchase.method",
-                    gateway=_payment_text(
-                        method, dialog_manager.middleware_data[USER_KEY].language
-                    ).name
-                    or runner.get(f"gateway-name.{method['gateway_type']}"),
+                    gateway=runner.get(f"gateway-name.{method['gateway_type']}"),
                     price=_price(data["prices"], method["currency"]),
                     currency_symbol=Currency(method["currency"]).symbol,
                 ),
@@ -384,11 +349,7 @@ async def confirm_getter(
             original_price=_original_price(data),
             currency_symbol=Currency(data["currency"]).symbol,
             # a free order has no method to name: the line drops
-            method=_payment_text(data, user.language).name
-            or runner.get(f"gateway-name.{data['gateway_type']}")
-            if data["gateway_type"]
-            else "",
-            method_description=_payment_text(data, user.language).description
+            method=runner.get(f"gateway-name.{data['gateway_type']}")
             if data["gateway_type"]
             else "",
             type_notice=_type_notice(runner, purchase_type, data),

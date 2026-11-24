@@ -6,7 +6,6 @@ from app.modules.gateways.usecases import (
     ReorderGatewaysUseCase,
     SetGatewayActiveUseCase,
     UpdateGatewayChannelsUseCase,
-    UpdateGatewayPresentationUseCase,
     UpdateGatewaySettingsUseCase,
 )
 
@@ -17,7 +16,6 @@ class GatewaysProvider(Provider):
     gateway_repository = provide(GatewayRepository)
     use_cases = provide_all(
         ListGatewaysUseCase,
-        UpdateGatewayPresentationUseCase,
         UpdateGatewaySettingsUseCase,
         SetGatewayActiveUseCase,
         UpdateGatewayChannelsUseCase,

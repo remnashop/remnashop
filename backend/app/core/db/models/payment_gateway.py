@@ -1,6 +1,5 @@
 from typing import Optional
 
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db.base import BaseSql
@@ -19,10 +18,6 @@ class PaymentGateway(BaseSql, TimestampMixin):
     # bot and Mini App; Telegram's rules allow only Stars there for digital goods
     telegram_enabled: Mapped[bool] = mapped_column(default=False, server_default="false")
     cabinet_enabled: Mapped[bool] = mapped_column(default=True, server_default="true")
-
-    presentation: Mapped[dict[str, dict[str, str]]] = mapped_column(
-        JSONB, default=dict, server_default="{}"
-    )
 
     # JSON dict[str, str] encrypted as one blob: the field set differs per type
     # (modules/gateways/field_catalog.py) and the admin form saves it whole

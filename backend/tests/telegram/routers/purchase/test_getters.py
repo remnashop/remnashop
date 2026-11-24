@@ -307,25 +307,3 @@ def test_plan_description_renders_premium_emoji_and_escapes_html() -> None:
     assert _plan_details(runner, plan) == (
         '<tg-emoji emoji-id="42">\U0001f525</tg-emoji> &lt;b&gt;fast&lt;/b&gt;\n'
     )
-
-
-async def test_custom_payment_name_and_description_are_escaped_but_keep_gateway_identity():
-    priced = {
-        **_PRICED,
-        "methods": [
-            {
-                "gateway_type": "YOOKASSA",
-                "currency": "RUB",
-                "presentation": {
-                    "en": {"name": "Card <b>or</b> SBP", "description": "Pay <script> & confirm"}
-                },
-            }
-        ],
-    }
-    data = await method_getter.__dishka_orig_func__(
-        _manager(priced), list_active_plans=AsyncMock(return_value=_CATALOG), i18n=_i18n()
-    )
-    assert data["methods"][0]["id"] == "YOOKASSA"
-    assert "Card <b>or</b> SBP" in data["methods"][0]["label"].text
-    assert "Pay &lt;script&gt; &amp; confirm" in data["window_text"]
-    assert "<script>" not in data["window_text"]

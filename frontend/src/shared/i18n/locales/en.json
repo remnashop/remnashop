@@ -1807,116 +1807,6 @@
         "relay_url": "paygate URL",
         "relay_ingress_secret": "Request signing secret (INGRESS_SECRET)",
         "relay_forward_secret": "Notification signing secret (FORWARD_SECRET)"
-      },
-      "presentation": {
-        "title": "Customer-facing text",
-        "hint": "An empty name keeps the provider name. Check suggestions against your enabled payment methods. Changes appear after saving.",
-        "name": "Name",
-        "description": "Short description",
-        "suggest": "Use RU / EN suggestions",
-        "reset": "Clear custom text"
-      },
-      "suggestions": {
-        "TELEGRAM_STARS": {
-          "name": "Telegram Stars",
-          "description": "Got Telegram Stars? Use your balance to pay right in Telegram."
-        },
-        "YOOKASSA": {
-          "name": "Card or SBP · YooKassa",
-          "description": "Pay with your usual bank card or use SBP in your banking app. Choose your preferred option at YooKassa checkout."
-        },
-        "YOOMONEY": {
-          "name": "Bank card · YooMoney",
-          "description": "Prefer paying by card? Open YooMoney, enter your card details and confirm the payment."
-        },
-        "VALUTIX": {
-          "name": "Online payment · Valutix",
-          "description": "Continue to Valutix for payment details and guidance on what to do next."
-        },
-        "CRYPTOMUS": {
-          "name": "Cryptocurrency · Cryptomus",
-          "description": "Pay from your crypto wallet. Choose a coin and network on the invoice page to see the transfer details."
-        },
-        "HELEKET": {
-          "name": "Cryptocurrency · Heleket",
-          "description": "Pay from your crypto wallet. Choose a coin and network on the invoice page to see the transfer details."
-        },
-        "CRYPTOPAY": {
-          "name": "Cryptocurrency · CryptoPay",
-          "description": "Keep your crypto in Telegram? Open Crypto Bot to review and confirm your payment."
-        },
-        "FREEKASSA": {
-          "name": "Online payment · FreeKassa",
-          "description": "Continue to FreeKassa for payment details and guidance on what to do next."
-        },
-        "MULENPAY": {
-          "name": "Card or SBP · MulenPay",
-          "description": "Card or banking app — choose what suits you. MulenPay will show the available options and guide you through payment."
-        },
-        "PAYMASTER": {
-          "name": "Card or SBP · PayMaster",
-          "description": "Card or banking app — choose what suits you. PayMaster will show the available options and guide you through payment."
-        },
-        "PLATEGA": {
-          "name": "Online payment · Platega",
-          "description": "Continue to Platega for payment details and guidance on what to do next."
-        },
-        "ROBOKASSA": {
-          "name": "Card or SBP · RoboKassa",
-          "description": "Card or banking app — choose what suits you. RoboKassa will show the available options and guide you through payment."
-        },
-        "URLPAY": {
-          "name": "Card or SBP · URLPay",
-          "description": "Card or banking app — choose what suits you. URLPay will show the available options and guide you through payment."
-        },
-        "WATA": {
-          "name": "Card or SBP · Wata",
-          "description": "Card or banking app — choose what suits you. Wata will show the available options and guide you through payment."
-        },
-        "ROLLYPAY": {
-          "name": "Bank payment · RollyPay",
-          "description": "Pay in rubles through your bank. RollyPay will show you how to confirm the payment."
-        },
-        "ANTILOPAY": {
-          "name": "Card or SBP · Antilopay",
-          "description": "Card or banking app — choose what suits you. Antilopay will show the available options and guide you through payment."
-        },
-        "AURAPAY": {
-          "name": "Online payment · AuraPay",
-          "description": "Continue to AuraPay for payment details and guidance on what to do next."
-        },
-        "PAY_2328": {
-          "name": "Cryptocurrency · 2328.io",
-          "description": "Pay from your crypto wallet. Choose a coin and network on the invoice page to see the transfer details."
-        },
-        "CISPAY": {
-          "name": "Online payment · cisPay",
-          "description": "Continue to cisPay for payment details and guidance on what to do next."
-        },
-        "CLOUDPAYMENTS": {
-          "name": "Card or SBP · CloudPayments",
-          "description": "Card or banking app — choose what suits you. CloudPayments will show the available options and guide you through payment."
-        },
-        "LAVA": {
-          "name": "Online payment · Lava",
-          "description": "Continue to Lava for payment details and guidance on what to do next."
-        },
-        "PAYPALYCH": {
-          "name": "Online payment · Paypalych",
-          "description": "Continue to Paypalych for payment details and guidance on what to do next."
-        },
-        "PAYPEAR": {
-          "name": "Online payment · PayPear",
-          "description": "Continue to PayPear for payment details and guidance on what to do next."
-        },
-        "RIOPAY": {
-          "name": "Online payment · RioPay",
-          "description": "Continue to RioPay for payment details and guidance on what to do next."
-        },
-        "SEVERPAY": {
-          "name": "Online payment · SeverPay",
-          "description": "Continue to SeverPay for payment details and guidance on what to do next."
-        }
       }
     },
     "webPush": {
@@ -2476,7 +2366,6 @@
     "APPEARANCE_APP_ICON_DELETE": "Delete PWA icon",
     "GATEWAYS_VIEW": "View payment gateways",
     "GATEWAYS_UPDATE": "Edit gateway settings",
-    "GATEWAYS_PRESENTATION_UPDATE": "Edit payment method names and descriptions",
     "GATEWAYS_ACTIVE_SET": "Enable and disable gateways",
     "GATEWAYS_CHANNELS_UPDATE": "Choose where gateways are offered",
     "GATEWAYS_REORDER": "Reorder gateways",

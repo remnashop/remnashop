@@ -200,7 +200,6 @@ def _store_method(dialog_data: dict[str, Any], method: dict[str, Any]) -> None:
     # a new selection is a new order, not the one already created
     dialog_data.pop(PAYMENT_URL_KEY, None)
     dialog_data["gateway_type"] = method["gateway_type"]
-    dialog_data["presentation"] = method.get("presentation", {})
     dialog_data["currency"] = method["currency"]
     dialog_data["requires_email"] = method.get("requires_email", False)
 
@@ -264,7 +263,6 @@ async def select_duration(
         else [
             {
                 "gateway_type": m.gateway_type.value,
-                "presentation": {k.value: v.model_dump() for k, v in m.presentation.items()},
                 "currency": m.currency.value,
                 "requires_email": m.requires_email,
             }

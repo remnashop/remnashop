@@ -46,7 +46,6 @@ class ListPaymentMethodsUseCase(UseCase[ListPaymentMethodsDto, list[PaymentMetho
                 methods.append(
                     PaymentMethodDto(
                         gateway_type=gateway.type,
-                        presentation=gateway.presentation,
                         currency=gateway_currency(gateway.type, settings),
                         # the client decides: ask for an email or hide the method
                         requires_email=shop_settings.payment_email is None

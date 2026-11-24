@@ -403,7 +403,6 @@ msg-purchase-method =
     { $plan_details }
 
     { $discount_notice }
-    { $method_descriptions }
 frg-purchase-plan =
     <b>{ $plan_name }</b>:
     <blockquote>
@@ -443,7 +442,6 @@ msg-purchase-confirm =
     }
     • <b>Duration</b>: { $period }
     • <b>Payment method</b>: { $method }
-    { $method_description }
     • <b>Without discount</b>: <s>{ $original_price } { $currency_symbol }</s>
     • <b>To pay</b>: { $is_free ->
         [1] Free

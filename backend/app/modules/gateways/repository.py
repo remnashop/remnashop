@@ -5,14 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db.models.payment_gateway import PaymentGateway
-from app.core.enums import Locale, PaymentGatewayType
+from app.core.enums import PaymentGatewayType
 from app.modules.gateways.dto import PaymentGatewayDto, default_telegram_enabled
 from app.modules.gateways.field_catalog import (
     gateway_flags,
     gateway_splits_channels,
     is_gateway_configured,
 )
-from app.modules.gateways.presentation import GatewayText
 
 
 class GatewayRepository:
@@ -26,9 +25,6 @@ class GatewayRepository:
         values: dict[str, str] = json.loads(row.settings) if row.settings else {}
         return PaymentGatewayDto(
             id=row.id,
-            presentation={
-                Locale(k): GatewayText.model_validate(v) for k, v in row.presentation.items()
-            },
             type=row.type,
             order_index=row.order_index,
             is_active=row.is_active,
@@ -157,16 +153,3 @@ class GatewayRepository:
         )
         refreshed_by_type = {row.type: row for row in result.scalars()}
         return [self._to_dto(refreshed_by_type[gateway_type]) for gateway_type in ordered_types]
-
-    async def set_presentation(
-        self, gateway_type: PaymentGatewayType, presentation: dict[Locale, GatewayText]
-    ) -> PaymentGatewayDto:
-        row = await self._get_row(gateway_type, for_update=True)
-        if row is None:
-            row = self._new_row(gateway_type)
-        row.presentation = {
-            locale.value: text.model_dump() for locale, text in presentation.items()
-        }
-        await self.session.flush()
-        await self.session.refresh(row)
-        return self._to_dto(row)
