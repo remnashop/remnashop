@@ -655,3 +655,11 @@ def test_refund_permissions_are_owner_only_and_not_for_tokens(permission: Permis
     assert permission not in ROLE_PERMISSIONS[Role.ADMIN]
     assert permission in ROLE_PERMISSIONS[Role.OWNER]
     assert permission not in TOKEN_GRANTABLE_PERMISSIONS
+
+
+def test_presentation_permission_does_not_grant_merchant_credentials():
+    editor = ADMIN.model_copy(
+        update={"permission_grants": [Permission.GATEWAYS_PRESENTATION_UPDATE.value]}
+    )
+    assert PermissionPolicy.has_permission(editor, Permission.GATEWAYS_PRESENTATION_UPDATE)
+    assert not PermissionPolicy.has_permission(editor, Permission.GATEWAYS_UPDATE)

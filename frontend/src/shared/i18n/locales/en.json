@@ -2476,6 +2476,7 @@
     "APPEARANCE_APP_ICON_DELETE": "Delete PWA icon",
     "GATEWAYS_VIEW": "View payment gateways",
     "GATEWAYS_UPDATE": "Edit gateway settings",
+    "GATEWAYS_PRESENTATION_UPDATE": "Edit payment method names and descriptions",
     "GATEWAYS_ACTIVE_SET": "Enable and disable gateways",
     "GATEWAYS_CHANNELS_UPDATE": "Choose where gateways are offered",
     "GATEWAYS_REORDER": "Reorder gateways",

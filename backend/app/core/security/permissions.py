@@ -120,6 +120,7 @@ class Permission(UpperStrEnum):
     APPEARANCE_APP_ICON_DELETE = auto()
     GATEWAYS_VIEW = auto()
     GATEWAYS_UPDATE = auto()
+    GATEWAYS_PRESENTATION_UPDATE = auto()
     GATEWAYS_ACTIVE_SET = auto()
     GATEWAYS_CHANNELS_UPDATE = auto()
     GATEWAYS_REORDER = auto()
@@ -377,6 +378,7 @@ PERMISSION_METADATA: Final[dict[Permission, PermissionMeta]] = {
     Permission.APPEARANCE_APP_ICON_DELETE: PermissionMeta(resource="appearance", kind="write"),
     Permission.GATEWAYS_VIEW: PermissionMeta(resource="gateways", kind="read"),
     Permission.GATEWAYS_UPDATE: PermissionMeta(resource="gateways", kind="write"),
+    Permission.GATEWAYS_PRESENTATION_UPDATE: PermissionMeta(resource="gateways", kind="write"),
     Permission.GATEWAYS_ACTIVE_SET: PermissionMeta(resource="gateways", kind="write"),
     Permission.GATEWAYS_CHANNELS_UPDATE: PermissionMeta(resource="gateways", kind="write"),
     Permission.GATEWAYS_REORDER: PermissionMeta(resource="gateways", kind="write"),

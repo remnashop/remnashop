@@ -2562,6 +2562,7 @@
     "APPEARANCE_APP_ICON_DELETE": "Удаление иконки PWA",
     "GATEWAYS_VIEW": "Просмотр платёжных шлюзов",
     "GATEWAYS_UPDATE": "Изменение настроек шлюзов",
+    "GATEWAYS_PRESENTATION_UPDATE": "Изменение названий и описаний способов оплаты",
     "GATEWAYS_ACTIVE_SET": "Включение и выключение шлюзов",
     "GATEWAYS_CHANNELS_UPDATE": "Выбор, где предлагаются шлюзы",
     "GATEWAYS_REORDER": "Изменение порядка шлюзов",

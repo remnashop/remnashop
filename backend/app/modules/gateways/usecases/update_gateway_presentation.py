@@ -9,7 +9,7 @@ from app.modules.gateways.repository import GatewayRepository
 
 
 class UpdateGatewayPresentationUseCase(UseCase[UpdateGatewayPresentationDto, PaymentGatewayDto]):
-    required_permission = Permission.GATEWAYS_UPDATE
+    required_permission = Permission.GATEWAYS_PRESENTATION_UPDATE
 
     def __init__(
         self,

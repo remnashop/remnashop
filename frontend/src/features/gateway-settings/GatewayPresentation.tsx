@@ -15,7 +15,7 @@ export function GatewayPresentation({ gateway, onChanged }: {
   gateway: Gateway; onChanged: (gateway: Gateway) => void;
 }) {
   const { t } = useTranslation();
-  const canUpdate = usePermissions().includes("GATEWAYS_UPDATE");
+  const canUpdate = usePermissions().includes("GATEWAYS_PRESENTATION_UPDATE");
   const [draft, setDraft] = useState<Record<string, GatewayText> | null>(null);
   const [saving, setSaving] = useState(false);
   const texts = draft ?? gateway.presentation ?? {};

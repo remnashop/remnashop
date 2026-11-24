@@ -35,7 +35,9 @@ No country, card brand, fees, settlement time, asset or network availability is 
 
 ## Compatibility and rollout
 
-`presentation` is one atomic, non-secret localized settings bundle. PUT replaces it,
+`presentation` is one atomic, non-secret localized settings bundle.
+Its dedicated GATEWAYS_PRESENTATION_UPDATE permission allows editing text without
+permission to change merchant credentials; existing staff grants are not broadened. PUT replaces it,
 including removing locales; an empty object restores legacy names. It is independent
 of encrypted provider credentials, activation, channel flags, invoice currency and routing.
 Name and description accept plain single-line text (64/160 characters). The bot escapes
