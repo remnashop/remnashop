@@ -262,6 +262,12 @@ class CisPaySettings(GatewaySettings):
     currency: Optional[str] = None
 
 
+class CoinsPaySettings(GatewaySettings):
+    api_key: SecretStr
+    webhook_secret: SecretStr
+    currency: Optional[str] = None
+
+
 GATEWAY_SETTINGS: Final[dict[PaymentGatewayType, type[GatewaySettings]]] = {
     PaymentGatewayType.TELEGRAM_STARS: TelegramStarsSettings,
     PaymentGatewayType.YOOKASSA: YooKassaSettings,
@@ -288,4 +294,5 @@ GATEWAY_SETTINGS: Final[dict[PaymentGatewayType, type[GatewaySettings]]] = {
     PaymentGatewayType.PAYPEAR: PayPearSettings,
     PaymentGatewayType.CISPAY: CisPaySettings,
     PaymentGatewayType.PAY_2328: Pay2328Settings,
+    PaymentGatewayType.COINSPAY: CoinsPaySettings,
 }

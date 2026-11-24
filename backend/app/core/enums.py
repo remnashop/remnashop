@@ -34,6 +34,7 @@ class PaymentGatewayType(UpperStrEnum):
     PAYPEAR = auto()
     CISPAY = auto()
     PAY_2328 = auto()
+    COINSPAY = auto()
 
 
 class PaymentOutcome(UpperStrEnum):

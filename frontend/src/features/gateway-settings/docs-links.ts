@@ -25,4 +25,5 @@ export const GATEWAY_DOCS_URLS: Readonly<Record<string, string>> = {
   PAYPEAR: "https://paypear.ru/docs/",
   CISPAY: "https://cispay.app/developers",
   PAY_2328: "https://2328.io/api/payments",
+  COINSPAY: "https://coinspay.app/docs",
 };

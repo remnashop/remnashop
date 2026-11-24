@@ -46,6 +46,7 @@ const CURRENCY_HINT_GATEWAYS = new Set([
   "PAYPALYCH",
   "CISPAY",
   "PAY_2328",
+  "COINSPAY",
 ]);
 
 const TEST_PAYMENT_POLL_MS = 3000;

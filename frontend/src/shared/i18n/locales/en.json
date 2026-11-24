@@ -1701,7 +1701,8 @@
         "CLOUDPAYMENTS": "Defaults to RUB.",
         "PAYPALYCH": "Must match the shop currency. Defaults to RUB.",
         "CISPAY": "USD means crypto (USDT) only. Defaults to RUB: the customer picks SBP, card or crypto on the cisPay page.",
-        "PAY_2328": "Defaults to RUB."
+        "PAY_2328": "Defaults to RUB.",
+        "COINSPAY": "Defaults to USD."
       },
       "channels": {
         "title": "Availability channels",
@@ -1762,6 +1763,7 @@
         "ANTILOPAY": "Antilopay",
         "AURAPAY": "AuraPay",
         "PAY_2328": "2328.io",
+        "COINSPAY": "CoinsPay",
         "CISPAY": "cisPay",
         "CLOUDPAYMENTS": "CloudPayments",
         "LAVA": "Lava",
