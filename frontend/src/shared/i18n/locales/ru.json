@@ -1826,7 +1826,8 @@
         "CLOUDPAYMENTS": "Если пусто — RUB.",
         "PAYPALYCH": "Должна совпадать с валютой магазина. Если пусто — RUB.",
         "CISPAY": "USD — только оплата криптовалютой (USDT). Если пусто — RUB: покупатель сам выбирает СБП, карту или криптовалюту на странице cisPay.",
-        "PAY_2328": "Если пусто — RUB."
+        "PAY_2328": "Если пусто — RUB.",
+        "COINSPAY": "Если пусто — USD."
       },
       "channels": {
         "title": "Каналы доступности",
@@ -1887,6 +1888,7 @@
         "ANTILOPAY": "Antilopay",
         "AURAPAY": "AuraPay",
         "PAY_2328": "2328.io",
+        "COINSPAY": "CoinsPay",
         "CISPAY": "cisPay",
         "CLOUDPAYMENTS": "CloudPayments",
         "LAVA": "Lava",

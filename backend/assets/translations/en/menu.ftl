@@ -534,6 +534,7 @@ gateway-name =
     .PAYPEAR = PayPear
     .CISPAY = cisPay
     .PAY_2328 = 2328.io
+    .COINSPAY = CoinsPay
 
 ntf-referrals =
     .disabled = ❌ The referral program isn't running right now.
