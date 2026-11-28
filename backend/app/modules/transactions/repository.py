@@ -161,6 +161,11 @@ class TransactionRepository:
             added_days=row.added_days,
             paid_at=row.paid_at,
             is_test=row.is_test,
+            recurring_consent_id=row.recurring_consent_id,
+            is_recurring=row.is_recurring,
+            yookassa_receipt_vat_code=row.yookassa_receipt_vat_code,
+            saved_payment_method_id=row.saved_payment_method_id,
+            payment_method_shop_id=row.payment_method_shop_id,
             fulfillment_hold=row.fulfillment_hold,
             fulfillment_approved=row.fulfillment_approved,
             purchase_discount_returned=row.purchase_discount_returned,
@@ -200,6 +205,9 @@ class TransactionRepository:
             idempotency_key=data.idempotency_key,
             expires_at=data.expires_at,
             is_test=data.is_test,
+            recurring_consent_id=data.recurring_consent_id,
+            is_recurring=data.is_recurring,
+            yookassa_receipt_vat_code=data.yookassa_receipt_vat_code,
         )
         self.session.add(row)
         await self.session.flush()
@@ -327,6 +335,7 @@ class TransactionRepository:
             .where(
                 Transaction.id == order_id,
                 Transaction.user_id == user_id,
+                Transaction.is_recurring.is_(False),
                 Transaction.status == TransactionStatus.PENDING,
             )
             .values(status=TransactionStatus.CANCELED, updated_at=NOW_FUNC)
@@ -352,6 +361,7 @@ class TransactionRepository:
                 in_ids(Transaction.id, ids),
                 Transaction.status == TransactionStatus.PENDING,
                 Transaction.expires_at <= cutoff,
+                Transaction.is_recurring.is_(False),
             )
             .values(status=TransactionStatus.CANCELED, updated_at=NOW_FUNC)
             .returning(Transaction)
@@ -413,8 +423,10 @@ class TransactionRepository:
             .values(fulfillment_hold=None, updated_at=NOW_FUNC)
         )
 
-    async def mark_fulfilled_by_key(self, idempotency_key: str, subscription_id: int) -> None:
-        await self._mark_fulfilled_where(
+    async def mark_fulfilled_by_key(
+        self, idempotency_key: str, subscription_id: int
+    ) -> Optional[TransactionDto]:
+        return await self._mark_fulfilled_where(
             Transaction.idempotency_key == idempotency_key, subscription_id
         )
 
@@ -425,13 +437,14 @@ class TransactionRepository:
             .values(added_days=added_days)
         )
 
-    async def mark_fulfilled(self, order_id: int, subscription_id: int) -> None:
-        await self._mark_fulfilled_where(Transaction.id == order_id, subscription_id)
+    async def mark_fulfilled(self, order_id: int, subscription_id: int) -> Optional[TransactionDto]:
+        return await self._mark_fulfilled_where(Transaction.id == order_id, subscription_id)
 
     async def _mark_fulfilled_where(
         self, condition: ColumnElement[bool], subscription_id: int
-    ) -> None:
-        await self.session.execute(
+    ) -> Optional[TransactionDto]:
+        """The order it marked; None when it was already fulfilled."""
+        row = await self.session.scalar(
             update(Transaction)
             .where(condition, Transaction.fulfilled_at.is_(None))
             .values(
@@ -439,6 +452,27 @@ class TransactionRepository:
                 fulfilled_subscription_id=subscription_id,
                 # issued, by whatever path: nothing waits for an admin any more
                 fulfillment_hold=None,
+            )
+            .returning(Transaction)
+        )
+        return self._to_dto(row) if row is not None else None
+
+    async def remember_payment_method(
+        self, order_id: int, payment_method_id: Optional[str], shop_id: Optional[str]
+    ) -> None:
+        if not payment_method_id or not shop_id:
+            return
+        await self.session.execute(
+            update(Transaction)
+            .where(
+                Transaction.id == order_id,
+                Transaction.recurring_consent_id.is_not(None),
+                Transaction.is_test.is_(False),
+                Transaction.gateway_type == PaymentGatewayType.YOOKASSA,
+            )
+            .values(
+                saved_payment_method_id=payment_method_id,
+                payment_method_shop_id=shop_id,
             )
         )
 
@@ -812,6 +846,61 @@ class TransactionRepository:
             day: DailyPaidDto(amount=amount, count=count)
             for day, amount, count in (await self.session.execute(stmt)).tuples()
         }
+
+    async def has_open_manual_order(self, subscription_id: int, now: datetime) -> bool:
+        return (
+            await self.session.scalar(
+                select(Transaction.id)
+                .where(
+                    Transaction.target_subscription_id == subscription_id,
+                    Transaction.is_recurring.is_(False),
+                    Transaction.is_test.is_(False),
+                    or_(
+                        and_(
+                            Transaction.status == TransactionStatus.PENDING,
+                            Transaction.expires_at > now,
+                        ),
+                        and_(
+                            Transaction.status == TransactionStatus.PAID,
+                            Transaction.fulfilled_at.is_(None),
+                        ),
+                    ),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
+    async def has_manual_renewal_since(
+        self, subscription_id: int, *, since: datetime, plan_id: Optional[int]
+    ) -> bool:
+        return (
+            await self.session.scalar(
+                select(Transaction.id)
+                .where(
+                    Transaction.fulfilled_subscription_id == subscription_id,
+                    Transaction.is_recurring.is_(False),
+                    Transaction.status == TransactionStatus.PAID,
+                    Transaction.fulfilled_at >= since,
+                    Transaction.plan_id == plan_id,
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
+    async def latest_recurring_order_id(self, subscription_id: int) -> Optional[int]:
+        latest: Optional[int] = await self.session.scalar(
+            select(Transaction.id)
+            .where(
+                Transaction.target_subscription_id == subscription_id,
+                Transaction.is_recurring.is_(True),
+                Transaction.is_test.is_(False),
+            )
+            .order_by(Transaction.id.desc())
+            .limit(1)
+        )
+        return latest
 
 
 def _exact(factor: Decimal) -> ColumnElement[Decimal]:

@@ -1,7 +1,7 @@
 from datetime import datetime, tzinfo
 from typing import Final, Optional, Union
 
-from app.core.constants import DATE_FORMAT, GB_TO_BYTES, MB_TO_BYTES
+from app.core.constants import DATE_FORMAT, DATETIME_FORMAT, GB_TO_BYTES, MB_TO_BYTES
 from app.core.enums import Locale
 from app.core.utils.money import format_money
 from app.modules.subscriptions import (
@@ -18,15 +18,21 @@ NAMES_PLAN: Final[frozenset[str]] = frozenset(
 )
 
 
-# args that arrive as ISO moments and are shown as the shop's date
-_DATE_ARGS: Final[tuple[str, ...]] = ("grace_until", "disable_date", "reset_date")
+# args that arrive as ISO moments and are shown as the shop's date, or date and time
+_DATE_ARGS: Final[dict[str, str]] = {
+    "grace_until": DATE_FORMAT,
+    "disable_date": DATE_FORMAT,
+    "reset_date": DATE_FORMAT,
+    "scheduled_at": DATETIME_FORMAT,
+    "next_attempt_at": DATETIME_FORMAT,
+}
 
 
 def shop_dates(args: dict[str, Union[str, int]], zone: tzinfo) -> dict[str, Union[str, int]]:
     """Date args as the shop's day; a value already written as a date (a task queued
     before this was) or "none" stays as it is."""
     dated = dict(args)
-    for name in _DATE_ARGS:
+    for name, date_format in _DATE_ARGS.items():
         value = args.get(name)
         if not isinstance(value, str):
             continue
@@ -34,7 +40,7 @@ def shop_dates(args: dict[str, Union[str, int]], zone: tzinfo) -> dict[str, Unio
             moment = datetime.fromisoformat(value)
         except ValueError:
             continue
-        dated[name] = moment.astimezone(zone).strftime(DATE_FORMAT)
+        dated[name] = moment.astimezone(zone).strftime(date_format)
     return dated
 
 

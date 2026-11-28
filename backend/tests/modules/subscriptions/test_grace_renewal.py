@@ -66,6 +66,7 @@ from app.modules.subscriptions.usecases import (
 )
 from app.modules.users.dto import UserDto
 from app.modules.users.repository import UserRepository
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.remnawave import FakeUserStore, _user_payload
 from tests.modules.subscriptions.factories import (
     create_subscription,
@@ -191,6 +192,7 @@ def _purchase(
         UserRepository(session),
         AppConfig.get(),
         SettingsRepository(session),
+        make_recurring_lifecycle(session),
     )
 
 

@@ -8,6 +8,7 @@ class MainMenu(StatesGroup):
 class Subscriptions(StatesGroup):
     LIST = State()
     CARD = State()
+    RECURRING_TERMS = State()
     DEVICES = State()
     DEVICE = State()
     DEVICE_RENAME = State()
@@ -22,6 +23,7 @@ class Purchase(StatesGroup):
     METHOD = State()
     EMAIL = State()
     CONFIRM = State()
+    RECURRING_TERMS = State()
     PAY = State()
     LINK_CHOICE = State()
 

@@ -81,6 +81,7 @@ from app.modules.transactions.unpaid_orders import FreeOrderFailer, PaidOrderHol
 from app.modules.users.dto import CreateUserDto, UpdateUserDto, UserDto
 from app.modules.users.repository import UserRepository
 from tests.fakes.events import RecordingEventPublisher
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.remnawave import FakeUserStore
 from tests.modules.subscriptions.factories import (
     credit_summary,
@@ -147,6 +148,7 @@ async def test_new_purchase_creates_subscription_with_real_remnawave_identity(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     subscription = await use_case(
@@ -203,6 +205,7 @@ async def test_new_purchase_with_a_squad_gone_from_the_panel_never_touches_it(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     with pytest.raises(ValidationError) as error:
@@ -252,6 +255,7 @@ async def test_new_purchase_forbidden_for_a_different_users_actor(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     with pytest.raises(PermissionDeniedError):
@@ -301,6 +305,7 @@ async def test_owner_can_purchase_on_behalf_of_another_user(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     subscription = await use_case(
@@ -346,6 +351,7 @@ async def test_new_purchase_rejects_target_subscription_id(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     with pytest.raises(ValidationError):
@@ -391,6 +397,7 @@ async def test_new_purchase_blocked_at_concurrent_subscription_cap(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     dto = PurchaseSubscriptionDto(
         user_id=buyer.id,
@@ -437,6 +444,7 @@ async def test_new_purchase_at_the_cap_never_touches_the_panel(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     dto = PurchaseSubscriptionDto(
         user_id=buyer.id,
@@ -484,6 +492,7 @@ async def test_renew_adds_a_calendar_month_or_exact_days(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     original = await use_case(
         buyer,
@@ -561,6 +570,7 @@ async def test_monthly_renewals_come_back_to_the_anchor_day(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        make_recurring_lifecycle(subscription_repository.session),
     )
 
     def _order(purchase_type: PurchaseType, **extra: Any) -> PurchaseSubscriptionDto:
@@ -635,6 +645,7 @@ async def test_a_paid_renew_takes_the_plans_tag_and_a_bonus_one_keeps_it(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     snapshot = snapshot_from_plan(
         plan, price_paid=Decimal("299.00"), currency=Currency.RUB, duration_days=30
@@ -692,6 +703,7 @@ async def test_a_paid_renew_of_an_edited_plan_moves_to_its_terms_and_keeps_add_o
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     snapshot = replace(
         snapshot_from_plan(
@@ -760,6 +772,7 @@ async def test_a_renew_from_unlimited_to_a_finite_plan_keeps_add_ons(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     snapshot = replace(
         snapshot_from_plan(
@@ -828,6 +841,7 @@ async def test_a_bonus_renew_of_an_edited_plan_keeps_the_old_terms(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     snapshot = replace(
         snapshot_from_plan(
@@ -885,6 +899,7 @@ async def test_a_paid_renew_lands_even_when_the_panel_refuses_the_tag(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     snapshot = snapshot_from_plan(
         plan, price_paid=Decimal("299.00"), currency=Currency.RUB, duration_days=30
@@ -950,6 +965,7 @@ async def test_renew_requires_target_subscription_id(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     with pytest.raises(ValidationError):
@@ -995,6 +1011,7 @@ async def test_renew_rejects_target_belonging_to_another_user(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     other_subscription = await use_case(
         other_buyer,
@@ -1054,6 +1071,7 @@ async def test_renew_rejects_target_on_a_different_plan(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     original = await use_case(
         buyer,
@@ -1112,6 +1130,7 @@ async def test_renew_rejects_a_deleted_target(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     original = await use_case(
         buyer,
@@ -1172,6 +1191,7 @@ async def test_change_applies_proration_credit_as_extra_days(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     old_subscription = await use_case(
         buyer,
@@ -1265,6 +1285,7 @@ async def test_change_converts_proration_credit_across_currencies(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     old_subscription = await use_case(
         buyer,
@@ -1333,6 +1354,7 @@ async def test_change_credit_converts_at_list_price_not_the_discounted_price(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     old_subscription = await use_case(
         buyer,
@@ -1414,6 +1436,7 @@ async def test_change_requires_target_subscription_id(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     with pytest.raises(ValidationError):
@@ -1478,6 +1501,7 @@ async def test_change_from_trial_gives_no_credit(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     trial_subscription = await use_case(
         buyer,
@@ -1556,6 +1580,7 @@ async def test_concurrent_new_purchases_never_exceed_the_cap(
             UserRepository(repo.session),
             AppConfig.get(),
             SettingsRepository(session),
+            recurring_closer=make_recurring_lifecycle(repo.session),
         )
         try:
             await use_case(
@@ -1684,6 +1709,7 @@ async def test_purchase_with_same_idempotency_key_returns_existing_subscription(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     dto = PurchaseSubscriptionDto(
         user_id=buyer.id,
@@ -1731,6 +1757,7 @@ async def test_purchase_failure_after_panel_call_disables_the_panel_user(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     disabled_ids: list[int] = []
@@ -1791,6 +1818,7 @@ async def test_cancelled_purchase_releases_its_idempotency_key(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     async def _cancelled(*args: object, **kwargs: object) -> None:
@@ -1846,6 +1874,7 @@ async def test_renew_reactivates_an_expired_subscription(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     purchased = await use_case(
         buyer,
@@ -1909,6 +1938,7 @@ async def test_renew_with_same_idempotency_key_returns_existing_subscription(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     purchased = await use_case(
         buyer,
@@ -1970,6 +2000,7 @@ async def test_purchase_with_idempotency_key_can_retry_after_a_failed_attempt(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     dto = PurchaseSubscriptionDto(
         user_id=buyer.id,
@@ -2029,6 +2060,7 @@ async def test_idempotency_key_is_released_after_a_panel_call_failure(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     dto = PurchaseSubscriptionDto(
         user_id=buyer.id,
@@ -2089,6 +2121,7 @@ async def test_change_does_not_reparent_addon_entitlement_to_the_new_row(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     old_subscription = await use_case(
         buyer,
@@ -2178,6 +2211,7 @@ async def test_trial_upgrade_does_not_reparent_addon_entitlement_to_the_new_row(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     trial = await use_case(
         buyer,
@@ -2265,6 +2299,7 @@ async def test_new_purchase_upgrades_an_active_trial_in_place(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     trial = await use_case(
@@ -2340,6 +2375,7 @@ async def test_new_purchase_without_a_trial_still_mints_a_fresh_panel_user(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     subscription = await use_case(
@@ -2393,6 +2429,7 @@ async def test_new_purchase_provisions_the_plans_traffic_limit_strategy_on_the_p
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     subscription = await use_case(
@@ -2454,6 +2491,7 @@ async def _renew_fixture(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     snapshot = snapshot_from_plan(
         plan, price_paid=Decimal("299.00"), currency=Currency.RUB, duration_days=30
@@ -2644,6 +2682,7 @@ async def test_a_system_grant_does_not_consume_the_purchase_discount(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     async with uow:
         await user_repository.update_fields(buyer.id, UpdateUserDto(purchase_discount=15))
@@ -2696,6 +2735,7 @@ async def test_only_a_paid_purchase_event_carries_the_payment_key(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     snapshot = snapshot_from_plan(
         plan, price_paid=Decimal("299.00"), currency=Currency.RUB, duration_days=30
@@ -2752,6 +2792,7 @@ async def test_change_that_loses_the_race_gives_the_panel_back_to_the_winner(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     old_subscription = await use_case(
         buyer,
@@ -2923,6 +2964,7 @@ def _purchase_use_case(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
 
@@ -3049,6 +3091,7 @@ async def test_change_deducts_spent_traffic_from_the_credit(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     old_subscription = await use_case(
         buyer,
@@ -4042,6 +4085,7 @@ def _purchase_use_case(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
 

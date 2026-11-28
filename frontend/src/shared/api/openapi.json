@@ -4383,6 +4383,89 @@
         "title": "CheckoutQuoteResponse",
         "type": "object"
       },
+      "CheckoutRecurringTermsRequest": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "duration_days": {
+            "minimum": 0.0,
+            "title": "Duration Days",
+            "type": "integer"
+          },
+          "gateway_type": {
+            "$ref": "#/components/schemas/PaymentGatewayType"
+          },
+          "legal_locale": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Locale"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Code"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "integer"
+          },
+          "purchase_type": {
+            "$ref": "#/components/schemas/PurchaseType"
+          },
+          "target_subscription_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Subscription Id"
+          }
+        },
+        "required": [
+          "plan_id",
+          "duration_days",
+          "currency",
+          "purchase_type",
+          "gateway_type"
+        ],
+        "title": "CheckoutRecurringTermsRequest",
+        "type": "object"
+      },
+      "CheckoutRecurringTermsResponse": {
+        "properties": {
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecurringTermsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "terms"
+        ],
+        "title": "CheckoutRecurringTermsResponse",
+        "type": "object"
+      },
       "CheckoutResponse": {
         "properties": {
           "confirmation_url": {
@@ -4901,6 +4984,20 @@
         "title": "ConnectStep",
         "type": "object"
       },
+      "ConsentChannel": {
+        "enum": [
+          "BOT",
+          "CABINET",
+          "ADMIN",
+          "PLAN_CHANGE",
+          "REFUND",
+          "PROVIDER",
+          "UNUSED",
+          "REPLACED"
+        ],
+        "title": "ConsentChannel",
+        "type": "string"
+      },
       "CopyLinkButton": {
         "properties": {
           "kind": {
@@ -5235,6 +5332,23 @@
           },
           "purchase_type": {
             "$ref": "#/components/schemas/PurchaseType"
+          },
+          "recurring_consent": {
+            "default": false,
+            "title": "Recurring Consent",
+            "type": "boolean"
+          },
+          "recurring_terms_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurring Terms Id"
           },
           "replaces_order_id": {
             "anyOf": [
@@ -7367,7 +7481,9 @@
           "GATEWAY_EMAIL_REQUIRED",
           "GATEWAY_FIELD_NOT_BOOLEAN",
           "GATEWAY_FIELD_NOT_NUMBER",
+          "GATEWAY_FIELD_OUT_OF_RANGE",
           "GATEWAY_FIELD_UNKNOWN",
+          "GATEWAY_FIELD_INVALID_CHOICE",
           "GATEWAY_NOT_AVAILABLE",
           "GATEWAY_NOT_CONFIGURED",
           "GATEWAY_NOT_IMPLEMENTED",
@@ -7464,6 +7580,12 @@
           "POINTS_BELOW_ZERO",
           "POINTS_LIMIT_EXCEEDED",
           "PRICE_CHANGED",
+          "RECURRING_CONSENT_REQUIRED",
+          "RECURRING_PAYMENT_IN_PROGRESS",
+          "RECURRING_TERMS_CHANGED",
+          "RECURRING_NOT_AVAILABLE",
+          "RECURRING_RETRY_NOT_ALLOWED",
+          "RECURRING_PAYMENT_STATE_CHANGED",
           "PRICING_PREVIEW_AMBIGUOUS",
           "PROMOCODE_ALREADY_ACTIVATED",
           "PROMOCODE_CODE_TAKEN",
@@ -7534,6 +7656,7 @@
           "TRANSLATION_HAS_NEWLINES",
           "TRANSLATION_HTML_INVALID",
           "TRANSLATION_NOT_FOUND",
+          "TRANSLATION_TOO_LONG",
           "TRANSLATION_VARIABLE_NOT_ALLOWED",
           "TRANSLATION_VARIABLE_UNKNOWN",
           "TRIAL_NOT_AVAILABLE",
@@ -8148,6 +8271,24 @@
         "title": "GatewayCatalogResponse",
         "type": "object"
       },
+      "GatewayFieldConditionResponse": {
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "GatewayFieldConditionResponse",
+        "type": "object"
+      },
       "GatewayFieldSpecResponse": {
         "properties": {
           "group": {
@@ -8161,6 +8302,16 @@
             ],
             "title": "Group"
           },
+          "hidden_when": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GatewayFieldConditionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "key": {
             "title": "Key",
             "type": "string"
@@ -8171,10 +8322,18 @@
               "secret",
               "number",
               "boolean",
-              "url"
+              "url",
+              "choice"
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
           },
           "required": {
             "title": "Required",
@@ -8199,10 +8358,12 @@
         "required": [
           "key",
           "kind",
+          "options",
           "required",
           "group",
           "requires_all_channels",
-          "required_unless"
+          "required_unless",
+          "hidden_when"
         ],
         "title": "GatewayFieldSpecResponse",
         "type": "object"
@@ -8263,6 +8424,13 @@
           },
           "type": {
             "$ref": "#/components/schemas/PaymentGatewayType"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "object"
           }
         },
         "required": [
@@ -8271,6 +8439,7 @@
           "is_active",
           "is_configured",
           "flags",
+          "values",
           "splits_channels",
           "telegram_enabled",
           "cabinet_enabled"
@@ -11657,6 +11826,16 @@
             "title": "Name",
             "type": "string"
           },
+          "recurring_available": {
+            "default": false,
+            "title": "Recurring Available",
+            "type": "boolean"
+          },
+          "recurring_required": {
+            "default": false,
+            "title": "Recurring Required",
+            "type": "boolean"
+          },
           "requires_email": {
             "title": "Requires Email",
             "type": "boolean"
@@ -11667,7 +11846,9 @@
           "currency",
           "name",
           "requires_email",
-          "asks_email"
+          "asks_email",
+          "recurring_available",
+          "recurring_required"
         ],
         "title": "PaymentMethodResponse",
         "type": "object"
@@ -12003,6 +12184,12 @@
           "BROADCASTS_EMAIL_TEST_SEND",
           "TRANSACTIONS_VIEW",
           "TRANSACTIONS_SUMMARY_VIEW",
+          "TRANSACTIONS_RECURRING_VIEW",
+          "TRANSACTIONS_RECURRING_SUMMARY_VIEW",
+          "TRANSACTIONS_RECURRING_CONSENT_VIEW",
+          "TRANSACTIONS_RECURRING_CHECK",
+          "TRANSACTIONS_RECURRING_CLOSE",
+          "TRANSACTIONS_RECURRING_RETRY",
           "TRANSACTIONS_DETAIL_VIEW",
           "TRANSACTIONS_GATEWAYS_VIEW",
           "TRANSACTIONS_FULFILL",
@@ -14340,6 +14527,603 @@
         "title": "RecentPaymentResponse",
         "type": "object"
       },
+      "RecurringAdminActionRequest": {
+        "properties": {
+          "expected_pending_transaction_id": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Pending Transaction Id"
+          }
+        },
+        "title": "RecurringAdminActionRequest",
+        "type": "object"
+      },
+      "RecurringConsentResponse": {
+        "properties": {
+          "accepted_at": {
+            "format": "date-time",
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/PurchaseChannel"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "revoked_channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConsentChannel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terms": {
+            "$ref": "#/components/schemas/RecurringTermsResponse"
+          }
+        },
+        "required": [
+          "terms",
+          "channel",
+          "accepted_at",
+          "revoked_at",
+          "revoked_channel"
+        ],
+        "title": "RecurringConsentResponse",
+        "type": "object"
+      },
+      "RecurringPaymentAdminItemResponse": {
+        "properties": {
+          "amount_limit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Limit"
+          },
+          "can_check": {
+            "title": "Can Check",
+            "type": "boolean"
+          },
+          "can_close": {
+            "title": "Can Close",
+            "type": "boolean"
+          },
+          "can_retry": {
+            "title": "Can Retry",
+            "type": "boolean"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_disabled": {
+            "title": "Customer Disabled",
+            "type": "boolean"
+          },
+          "duration_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Days"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expire_at": {
+            "format": "date-time",
+            "title": "Expire At",
+            "type": "string"
+          },
+          "external_payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Payment Id"
+          },
+          "first_failure_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Failure At"
+          },
+          "has_saved_method": {
+            "title": "Has Saved Method",
+            "type": "boolean"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "next_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Attempt At"
+          },
+          "pending_transaction_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Transaction Id"
+          },
+          "plan_name": {
+            "title": "Plan Name",
+            "type": "string"
+          },
+          "retry_count": {
+            "title": "Retry Count",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RecurringState"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "subscription_id": {
+            "title": "Subscription Id",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "user_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Name"
+          }
+        },
+        "required": [
+          "subscription_id",
+          "user_id",
+          "user_name",
+          "plan_name",
+          "enabled",
+          "customer_disabled",
+          "state",
+          "last_error",
+          "next_attempt_at",
+          "submitted_at",
+          "pending_transaction_id",
+          "external_payment_id",
+          "can_check",
+          "can_close",
+          "can_retry",
+          "retry_count",
+          "first_failure_at",
+          "amount_limit",
+          "currency",
+          "duration_days",
+          "has_saved_method",
+          "expire_at"
+        ],
+        "title": "RecurringPaymentAdminItemResponse",
+        "type": "object"
+      },
+      "RecurringPaymentPageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringPaymentAdminItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "RecurringPaymentPageResponse",
+        "type": "object"
+      },
+      "RecurringPaymentStateResponse": {
+        "properties": {
+          "accepted_terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecurringTermsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount_limit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Limit"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "can_disable": {
+            "title": "Can Disable",
+            "type": "boolean"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_disabled": {
+            "title": "Customer Disabled",
+            "type": "boolean"
+          },
+          "duration_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Days"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "next_payment_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Payment At"
+          },
+          "next_retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Retry At"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "payment_in_flight": {
+            "title": "Payment In Flight",
+            "type": "boolean"
+          },
+          "payment_pending": {
+            "title": "Payment Pending",
+            "type": "boolean"
+          },
+          "retrying": {
+            "title": "Retrying",
+            "type": "boolean"
+          },
+          "subscription_id": {
+            "title": "Subscription Id",
+            "type": "integer"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecurringTermsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "subscription_id",
+          "terms",
+          "accepted_terms",
+          "enabled",
+          "available",
+          "customer_disabled",
+          "can_disable",
+          "paused",
+          "retrying",
+          "payment_pending",
+          "payment_in_flight",
+          "next_retry_at",
+          "amount_limit",
+          "currency",
+          "duration_days",
+          "next_payment_at",
+          "last_error"
+        ],
+        "title": "RecurringPaymentStateResponse",
+        "type": "object"
+      },
+      "RecurringPaymentSummaryResponse": {
+        "properties": {
+          "attention": {
+            "title": "Attention",
+            "type": "integer"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "disabled": {
+            "title": "Disabled",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "integer"
+          },
+          "failed_renewals": {
+            "title": "Failed Renewals",
+            "type": "integer"
+          },
+          "paid_renewals": {
+            "title": "Paid Renewals",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "retrying": {
+            "title": "Retrying",
+            "type": "integer"
+          },
+          "revenue": {
+            "title": "Revenue",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "enabled",
+          "disabled",
+          "pending",
+          "retrying",
+          "attention",
+          "paid_renewals",
+          "failed_renewals",
+          "revenue",
+          "currency"
+        ],
+        "title": "RecurringPaymentSummaryResponse",
+        "type": "object"
+      },
+      "RecurringState": {
+        "enum": [
+          "enabled",
+          "disabled",
+          "pending",
+          "retrying",
+          "attention"
+        ],
+        "title": "RecurringState",
+        "type": "string"
+      },
+      "RecurringTermsResponse": {
+        "properties": {
+          "amount_limit": {
+            "title": "Amount Limit",
+            "type": "string"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "duration_days": {
+            "title": "Duration Days",
+            "type": "integer"
+          },
+          "initial_amount": {
+            "title": "Initial Amount",
+            "type": "string"
+          },
+          "lead_minutes": {
+            "title": "Lead Minutes",
+            "type": "integer"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/Locale"
+          },
+          "max_overdue_hours": {
+            "title": "Max Overdue Hours",
+            "type": "integer"
+          },
+          "pending_timeout_hours": {
+            "title": "Pending Timeout Hours",
+            "type": "integer"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "integer"
+          },
+          "purchase_type": {
+            "$ref": "#/components/schemas/PurchaseType"
+          },
+          "retry_minutes": {
+            "title": "Retry Minutes",
+            "type": "integer"
+          },
+          "retry_offsets_hours": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Retry Offsets Hours",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "target_subscription_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Subscription Id"
+          },
+          "terms_id": {
+            "title": "Terms Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "terms_id",
+          "user_id",
+          "plan_id",
+          "target_subscription_id",
+          "purchase_type",
+          "initial_amount",
+          "amount_limit",
+          "currency",
+          "duration_days",
+          "lead_minutes",
+          "retry_minutes",
+          "retry_offsets_hours",
+          "pending_timeout_hours",
+          "max_overdue_hours",
+          "locale",
+          "summary",
+          "text"
+        ],
+        "title": "RecurringTermsResponse",
+        "type": "object"
+      },
       "RedeemBonusDaysRequest": {
         "properties": {
           "days": {
@@ -16143,6 +16927,31 @@
           "durations"
         ],
         "title": "SetPlanDurationsRequest",
+        "type": "object"
+      },
+      "SetRecurringPaymentRequest": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "terms_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Id"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SetRecurringPaymentRequest",
         "type": "object"
       },
       "SetTrialAvailabilityRequest": {

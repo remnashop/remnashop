@@ -25,7 +25,11 @@ _SAMPLE: dict[GatewayFieldKind, str] = {
 def _full_form(gateway_type: PaymentGatewayType) -> dict[str, str]:
     # a text value per key, so two id fields never hold the same shop
     return {
-        spec.key: f"{spec.key}-text" if spec.kind is GatewayFieldKind.TEXT else _SAMPLE[spec.kind]
+        spec.key: spec.options[0]
+        if spec.options
+        else f"{spec.key}-text"
+        if spec.kind is GatewayFieldKind.TEXT
+        else _SAMPLE[spec.kind]
         for spec in GATEWAY_FIELD_CATALOG[gateway_type]
     }
 

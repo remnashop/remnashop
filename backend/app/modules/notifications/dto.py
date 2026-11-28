@@ -32,6 +32,7 @@ COALESCED_EVENT_TYPES: Final[frozenset[str]] = frozenset(
         "OAuthLoginFailedEvent",
         "PanelLoginFailedEvent",
         "TorrentBlockerReportEvent",
+        "RecurringPaymentPausedEvent",
         # a broken subscriber poisons a burst of entries at once
         "OutboxEntryPoisonedEvent",
     }
@@ -89,6 +90,8 @@ NOTIFICATION_GROUPS: Final[dict[NotificationGroup, frozenset[str]]] = {
             "TransactionPartiallyRefundedEvent",
             "TransactionFulfilledManuallyEvent",
             "PaidOrderNotFulfilledEvent",
+            "RecurringPaymentPausedEvent",
+            "RecurringPaymentExhaustedEvent",
             "SubscriptionChangedEvent",
         }
     ),

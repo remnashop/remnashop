@@ -51,7 +51,11 @@ from app.modules.customer_notifications.render_args import (
     shop_dates,
 )
 from app.modules.customer_notifications.repository import CustomerNotificationRepository
-from app.modules.customer_notifications.routing import CustomerChannel, channels_for
+from app.modules.customer_notifications.routing import (
+    CustomerChannel,
+    channels_for,
+    should_notify_customer,
+)
 from app.modules.customer_notifications.waitlist import PAYMENTS_RESTORED
 from app.modules.email import SendEmailDispatch, load_email_brand, render_email
 from app.modules.notifications import (
@@ -66,6 +70,12 @@ from app.modules.notifications import (
 )
 from app.modules.plans import PlanRepository
 from app.modules.promocodes import PromocodeDiscountExpiringEvent
+from app.modules.recurring_payments import (
+    RecurringDebitChecks,
+    RecurringPaymentExhaustedEvent,
+    RecurringPaymentFailedEvent,
+    RecurringPaymentPausedEvent,
+)
 from app.modules.settings import SettingsRepository
 from app.modules.subscriptions import (
     SubscriptionChangedEvent,
@@ -87,7 +97,10 @@ from app.modules.subscriptions import (
     current_plan_snapshots,
     next_traffic_reset,
 )
-from app.modules.transactions import PaidOrderNotFulfilledEvent, TransactionRepository
+from app.modules.transactions import (
+    PaidOrderNotFulfilledEvent,
+    TransactionRepository,
+)
 from app.modules.users import UserDto, UserRepository
 
 # outlives the sweep's retries of one outbox row
@@ -114,6 +127,9 @@ _RENEWABLE: Final[frozenset[str]] = frozenset(
         SubscriptionExpiryDisableWarningEvent,
         SubscriptionExpiredAgoEvent,
         SubscriptionTrafficLimitedEvent,
+        RecurringPaymentFailedEvent,
+        RecurringPaymentPausedEvent,
+        RecurringPaymentExhaustedEvent,
     )
 )
 # the subscription page is where a customer connects a device
@@ -129,6 +145,9 @@ _SUPPORT: Final[frozenset[str]] = frozenset(
         SubscriptionNotConnectedEvent.__name__,
         TorrentBlockerReportEvent.__name__,
         PaidOrderNotFulfilledEvent.__name__,
+        RecurringPaymentFailedEvent.__name__,
+        RecurringPaymentPausedEvent.__name__,
+        RecurringPaymentExhaustedEvent.__name__,
         CabinetNewDeviceSignInEvent.__name__,
         AccountsMergedEvent.__name__,
     }
@@ -175,6 +194,7 @@ class NotifyCustomerUseCase(UseCase[NotifyCustomerDto, None]):
         redis: Redis,
         config: AppConfig,
         uow: UnitOfWork,
+        recurring_debit_checks: RecurringDebitChecks,
     ) -> None:
         self._user_repository = user_repository
         self._settings_repository = settings_repository
@@ -192,6 +212,7 @@ class NotifyCustomerUseCase(UseCase[NotifyCustomerDto, None]):
         self._redis = redis
         self._config = config
         self._uow = uow
+        self._recurring_debit_checks = recurring_debit_checks
 
     async def _execute(self, actor: Actor, data: NotifyCustomerDto) -> None:
         # the outbox row is already processed, so only a retry can save a failed run;
@@ -201,10 +222,24 @@ class NotifyCustomerUseCase(UseCase[NotifyCustomerDto, None]):
         except Exception as error:
             raise RetryableTaskError(str(error)) from error
 
+    async def _renews_automatically(self, data: NotifyCustomerDto) -> bool:
+        # "renew in advance" is wrong advice while auto-renewal will charge for it
+        if data.event_type != SubscriptionExpiringEvent.__name__ or data.subscription_id is None:
+            return False
+        async with self._uow:
+            return await self._recurring_debit_checks.will_renew(data.subscription_id)
+
     async def _notify(self, data: NotifyCustomerDto) -> None:
+        if not should_notify_customer(data.event_type, data.args):
+            return
         async with self._uow:
             user = await self._user_repository.find_by_id(data.user_id)
-        if user is None or user.is_blocked or user.deleted_at is not None:
+        if (
+            user is None
+            or user.is_blocked
+            or user.deleted_at is not None
+            or await self._renews_automatically(data)
+        ):
             return
         if data.event_type in _TRIAL_AWARE and data.subscription_id is not None:
             with_subscription = await self._with_subscription_args(data, data.subscription_id)

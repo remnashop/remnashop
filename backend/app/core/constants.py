@@ -117,6 +117,7 @@ INT64_MAX: Final[int] = 2**63 - 1
 TIMEZONE: Final[timezone] = timezone.utc
 # how a customer reads a date, in the bot and in what it sends
 DATE_FORMAT: Final[str] = "%d.%m.%Y"
+DATETIME_FORMAT: Final[str] = "%d.%m.%Y %H:%M"
 # the inline query the referral "Invite" button opens the chat picker with
 INLINE_INVITE_QUERY: Final[str] = "invite"
 DATETIME_FILE_FORMAT: Final[str] = "%Y-%m-%d_%H-%M-%S"
@@ -220,6 +221,8 @@ DEFAULT_UNLIMITED_REWARD_DAYS: Final[int] = 365
 
 # an unlimited (0-day) order's paid coverage, long enough to outlast any report
 UNLIMITED_COVERAGE_DAYS: Final[int] = 36500
+# sha256 hex of the auto-renewal terms a customer saw
+RECURRING_TERMS_ID_PATTERN: Final[str] = r"^[0-9a-f]{64}$"
 
 # a customer's hidden price markup, in percent of the plan price
 MAX_MARKUP_PERCENT: Final[int] = 500

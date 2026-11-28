@@ -56,6 +56,7 @@ from app.modules.users.repository import UserRepository
 from tests.fakes.dispatch import RecordingDispatch
 from tests.fakes.events import RecordingEventPublisher
 from tests.fakes.payment_texts import FixedPaymentTexts
+from tests.fakes.recurring import make_recurring_checkout
 from tests.modules.subscriptions.factories import make_change_credit_calculator, make_eligibility
 
 OWNER = UserDto(name="owner", role=Role.OWNER)
@@ -189,6 +190,7 @@ async def test_rate_change_moves_catalog_but_not_existing_order(
             TranslationRepository(plan_repository.session),
         ),
         FixedPaymentTexts(),
+        make_recurring_checkout(plan_repository.session),
     )
     result = await create_checkout(
         user,

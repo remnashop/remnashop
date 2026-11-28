@@ -55,6 +55,7 @@ from app.modules.subscriptions.usecases import (
 )
 from app.modules.users.dto import UserDto
 from app.modules.users.repository import UserRepository
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.remnawave import FakeUserStore, _user_payload
 from tests.modules.subscriptions.factories import (
     create_subscription,
@@ -189,6 +190,7 @@ class _Rule:
             UserRepository(session),
             AppConfig.get(),
             settings,
+            recurring_closer=make_recurring_lifecycle(session),
         )
         self.set_enabled = SetSubscriptionEnabledUseCase(
             subscriptions,

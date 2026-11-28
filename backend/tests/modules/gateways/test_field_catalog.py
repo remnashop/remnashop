@@ -1,13 +1,20 @@
 import pytest
 
 from app.core.enums import PaymentGatewayType
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import ValidationError
 from app.modules.gateways.field_catalog import (
     GATEWAY_FIELD_CATALOG,
     gateway_flags,
+    gateway_values,
     is_gateway_configured,
     validate_gateway_field_keys,
     validate_gateway_field_values,
+)
+from app.modules.gateways.gateway_settings import (
+    YooKassaSettings,
+    yookassa_recurring_enabled,
+    yookassa_recurring_required,
 )
 
 
@@ -127,3 +134,70 @@ def test_validate_gateway_field_values_rejects_a_non_boolean_flag() -> None:
     validate_gateway_field_values(PaymentGatewayType.YOOKASSA, {"verify_ip": "false"})
     with pytest.raises(ValidationError):
         validate_gateway_field_values(PaymentGatewayType.YOOKASSA, {"verify_ip": "no"})
+
+
+@pytest.mark.parametrize(
+    ("mode", "enabled", "required"),
+    [
+        ("single", False, False),
+        ("recurring", True, True),
+        ("both", True, False),
+    ],
+)
+def test_yookassa_payment_mode_has_explicit_catalog_options_and_safe_flags(mode, enabled, required):
+    specs = {item.key: item for item in GATEWAY_FIELD_CATALOG[PaymentGatewayType.YOOKASSA]}
+    assert specs["payment_mode"].kind.value == "choice"
+    assert specs["payment_mode"].options == ("single", "recurring", "both")
+    assert "recurring_enabled" not in specs
+    validate_gateway_field_values(PaymentGatewayType.YOOKASSA, {"payment_mode": mode})
+    values = {"payment_mode": mode}
+    assert yookassa_recurring_enabled(values) is enabled
+    assert yookassa_recurring_required(values) is required
+    assert gateway_values(PaymentGatewayType.YOOKASSA, values)["payment_mode"] == mode
+    settings = YooKassaSettings.from_values(
+        {"shop_id": "1", "api_key": "key", "payment_mode": mode}
+    )
+    assert settings.payment_mode == mode and settings.recurring_enabled is enabled
+
+
+def test_yookassa_payment_mode_rejects_unknown_choice():
+    with pytest.raises(ValidationError):
+        validate_gateway_field_values(PaymentGatewayType.YOOKASSA, {"payment_mode": "automatic"})
+
+
+def test_recurring_timing_outside_its_bounds_is_rejected() -> None:
+    with pytest.raises(ValidationError) as error:
+        validate_gateway_field_values(
+            PaymentGatewayType.YOOKASSA, {"recurring_lead_minutes": "5000"}
+        )
+    assert error.value.code == ErrorCode.GATEWAY_FIELD_OUT_OF_RANGE
+
+
+def test_recurring_timing_within_its_bounds_is_accepted() -> None:
+    validate_gateway_field_values(PaymentGatewayType.YOOKASSA, {"recurring_lead_minutes": "60"})
+
+
+def test_gateway_values_read_back_settings_but_never_secrets() -> None:
+    stored = {
+        "shop_id": "1000",
+        "api_key": "live-secret",
+        "recurring_lead_minutes": "60",
+        "verify_ip": "false",
+    }
+    values = gateway_values(PaymentGatewayType.YOOKASSA, stored)
+    assert values["shop_id"] == "1000" and values["recurring_lead_minutes"] == "60"
+    # an unset choice reads as its default, a boolean stays in flags
+    assert values["payment_mode"] == "single" and "verify_ip" not in values
+    assert "live-secret" not in values.values() and "api_key" not in values
+
+
+def test_yookassa_recurring_timings_are_hidden_in_single_payment_mode() -> None:
+    fields = {f.key: f for f in GATEWAY_FIELD_CATALOG[PaymentGatewayType.YOOKASSA]}
+    hidden = {key for key, f in fields.items() if f.hidden_when == ("payment_mode", "single")}
+    assert hidden == {
+        "recurring_lead_minutes",
+        "recurring_retry_minutes",
+        "recurring_max_overdue_hours",
+        "recurring_notice_lead_minutes",
+    }
+    assert fields["payment_mode"].hidden_when is None

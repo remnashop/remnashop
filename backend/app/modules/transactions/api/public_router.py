@@ -66,6 +66,8 @@ async def create_checkout(
             legal_locale=payload.legal_locale,
             expected_price=payload.expected_price,
             replaces_order_id=payload.replaces_order_id,
+            recurring_consent=payload.recurring_consent,
+            recurring_terms_id=payload.recurring_terms_id,
             client_ip=resolve_client_ip(request),
             return_to="cabinet" if auth.audience is SessionAudience.CABINET else "default",
         ),

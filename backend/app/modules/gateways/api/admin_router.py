@@ -10,6 +10,7 @@ from app.core.enums import PaymentGatewayType
 from app.modules.gateways.api.schemas import (
     GatewayCatalogEntryResponse,
     GatewayCatalogResponse,
+    GatewayFieldConditionResponse,
     GatewayFieldSpecResponse,
     GatewayListResponse,
     GatewayResponse,
@@ -69,6 +70,14 @@ async def get_gateway_catalog(
                     key=field_spec.key,
                     kind=field_spec.kind.value,
                     required=field_spec.required,
+                    options=list(field_spec.options),
+                    hidden_when=(
+                        GatewayFieldConditionResponse(
+                            field=field_spec.hidden_when[0], value=field_spec.hidden_when[1]
+                        )
+                        if field_spec.hidden_when is not None
+                        else None
+                    ),
                     group=field_spec.group,
                     requires_all_channels=field_spec.requires_all_channels,
                     required_unless=field_spec.required_unless,

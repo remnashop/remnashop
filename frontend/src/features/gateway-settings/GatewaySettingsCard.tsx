@@ -1,5 +1,5 @@
 import type { ParseKeys } from "i18next";
-import { BookOpen } from "lucide-react";
+import { BookOpen, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -25,8 +25,10 @@ import { Field } from "@shared/ui/glass/Field";
 import { CopyInput, Input, PasswordInput } from "@shared/ui/glass/Input";
 import { Row } from "@shared/ui/glass/Row";
 import { Switch } from "@shared/ui/glass/Switch";
+import { LabeledDivider } from "@shared/ui/LabeledDivider";
 import { Pressable } from "@shared/ui/Pressable";
 import { SaveFooter } from "@shared/ui/SaveFooter";
+import { SelectDropdown } from "@shared/ui/SelectDropdown";
 
 import { ChannelTiles } from "./ChannelTiles";
 import { GATEWAY_DOCS_URLS } from "./docs-links";
@@ -63,7 +65,7 @@ export function GatewaySettingsCard({
   webhookUrl,
   onChanged,
 }: GatewaySettingsCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,8 +77,18 @@ export function GatewaySettingsCard({
 
   const label = t(`settings.gateways.types.${gateway.type}` as ParseKeys);
   const flagFields = fields.filter((field) => field.kind === "boolean" && field.group === null);
-  const valueFields = fields.filter((field) => field.kind !== "boolean");
-  const ungroupedValueFields = valueFields.filter((field) => field.group === null);
+  const valueFields = fields.filter((field) => field.kind !== "boolean" && field.kind !== "choice");
+  const stored = (key: string) => gateway.values[key] ?? "";
+  // choices and values in catalog order, so a choice sits where its model declares it
+  const ungroupedFields = fields.filter(
+    (field) => field.kind !== "boolean" && field.group === null && field.hidden_when === null,
+  );
+  // conditional fields go under their own divider, named after the field they depend on
+  const dependentFields = valueFields.filter(
+    (field) =>
+      field.group === null && field.hidden_when !== null && stored(field.hidden_when.field) !== field.hidden_when.value,
+  );
+  const dependsOn = dependentFields[0]?.hidden_when?.field;
   const isGroupOn = (key: string) => values[key] === "true" || Boolean(gateway.flags[key]);
   // a group: its switch, then the fields it shows while on
   const groups = fields
@@ -94,7 +106,16 @@ export function GatewaySettingsCard({
     }));
   const docsUrl = GATEWAY_DOCS_URLS[gateway.type];
   const logoUrl = GATEWAY_LOGOS[gateway.type];
-  const dirty = Object.values(values).some((value) => value !== "");
+  const fieldByKey = new Map(fields.map((field) => [field.key, field]));
+  // a blank secret or required field keeps what is stored; a blank optional one clears it
+  const clearable = (key: string) => {
+    const field = fieldByKey.get(key);
+    return field !== undefined && field.kind !== "secret" && !field.required;
+  };
+  const changedValues = Object.fromEntries(
+    Object.entries(values).filter(([key, value]) => value !== stored(key) && (value !== "" || clearable(key))),
+  );
+  const dirty = Object.keys(changedValues).length > 0;
   const permissions = usePermissions();
   const canUpdate = permissions.includes("GATEWAYS_UPDATE");
   const canSetChannels = permissions.includes("GATEWAYS_CHANNELS_UPDATE");
@@ -112,12 +133,11 @@ export function GatewaySettingsCard({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    const changed = Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ""));
-    if (Object.keys(changed).length === 0) return;
+    if (!dirty) return;
 
     setIsSubmitting(true);
     try {
-      onChanged(await updateGatewaySettings(gateway.type, changed));
+      onChanged(await updateGatewaySettings(gateway.type, changedValues));
       setValues({});
       toast.success(t("common.saved"));
     } catch (err) {
@@ -131,6 +151,17 @@ export function GatewaySettingsCard({
     setSavingFlag(key);
     try {
       onChanged(await updateGatewaySettings(gateway.type, { [key]: String(enabled) }));
+    } catch (err) {
+      toast.error(getErrorMessage(err, t("common.errors.generic")));
+    } finally {
+      setSavingFlag(null);
+    }
+  };
+
+  const handleChoice = async (key: string, value: string) => {
+    setSavingFlag(key);
+    try {
+      onChanged(await updateGatewaySettings(gateway.type, { [key]: value }));
     } catch (err) {
       toast.error(getErrorMessage(err, t("common.errors.generic")));
     } finally {
@@ -271,6 +302,29 @@ export function GatewaySettingsCard({
     </div>
   );
 
+  const renderChoiceField = (field: GatewayFieldSpec) => (
+    <Field
+      key={field.key}
+      htmlFor={`gateway-${gateway.type}-${field.key}`}
+      label={t(`settings.gateways.fields.${field.key}` as ParseKeys)}
+      info={t(`settings.gateways.flagHints.${field.key}` as ParseKeys)}
+    >
+      <SelectDropdown
+        id={`gateway-${gateway.type}-${field.key}`}
+        value={stored(field.key)}
+        options={field.options.map((value) => ({
+          value,
+          label: t(`settings.gateways.choices.${field.key}.${value}` as ParseKeys),
+        }))}
+        placeholder={t(`settings.gateways.fields.${field.key}` as ParseKeys)}
+        icon={SlidersHorizontal}
+        variant="well"
+        onChange={(value) => void handleChoice(field.key, value)}
+        disabled={!canUpdate || savingFlag === field.key}
+      />
+    </Field>
+  );
+
   const renderValueField = (field: GatewayFieldSpec) => {
     // once configured, a blank field keeps the stored value
     const waived = field.required_unless !== null && isGroupOn(field.required_unless);
@@ -280,10 +334,12 @@ export function GatewaySettingsCard({
       (field.group !== null
         ? isGroupOn(field.group) && (!gateway.flags[field.group] || !gateway.is_configured)
         : (field.required || field.required_unless !== null) && !gateway.is_configured);
+    const suffixKey = `settings.gateways.suffixes.${field.key}`;
     const inputProps = {
       id: `gateway-${gateway.type}-${field.key}`,
       inputMode: inputModeFor(field),
-      value: values[field.key] ?? "",
+      // a secret is never sent back, so its field starts empty; the rest show what is stored
+      value: values[field.key] ?? (field.kind === "secret" ? "" : stored(field.key)),
       onChange: (event: ChangeEvent<HTMLInputElement>) =>
         setValues((prev) => ({
           ...prev,
@@ -308,7 +364,11 @@ export function GatewaySettingsCard({
           // "off" is ignored on password fields: the browser would offer the admin's saved password
           <PasswordInput {...inputProps} autoComplete="new-password" />
         ) : (
-          <Input {...inputProps} autoComplete="off" />
+          <Input
+            {...inputProps}
+            autoComplete="off"
+            suffix={i18n.exists(suffixKey) ? t(suffixKey as ParseKeys) : undefined}
+          />
         )}
       </Field>
     );
@@ -348,7 +408,13 @@ export function GatewaySettingsCard({
               <CopyInput id={`gateway-${gateway.type}-webhook`} value={webhookUrl} />
             </Field>
           )}
-          {ungroupedValueFields.map(renderValueField)}
+          {ungroupedFields.map((field) =>
+            field.kind === "choice" ? renderChoiceField(field) : renderValueField(field),
+          )}
+          {dependsOn !== undefined && (
+            <LabeledDivider>{t(`settings.gateways.dependentGroups.${dependsOn}` as ParseKeys)}</LabeledDivider>
+          )}
+          {dependentFields.map(renderValueField)}
           {groups.map(({ toggle, fields: groupFields }) => (
             <div key={toggle.key} className="flex flex-col gap-3 border-t border-white/[0.08] pt-3">
               {renderFlag(toggle, isGroupOn(toggle.key), (enabled) => handleGroupToggle(toggle.key, enabled))}
@@ -358,7 +424,10 @@ export function GatewaySettingsCard({
             </div>
           ))}
           {valueFields.length > 0 && canUpdate ? (
-            <SaveFooter flush dirty={dirty} saving={isSubmitting} beside={testButton} />
+            // 4px on the fold-out's 12px gap: 16px above Save, as in a Section's footer
+            <div className="mt-1">
+              <SaveFooter flush dirty={dirty} saving={isSubmitting} beside={testButton} />
+            </div>
           ) : (
             testButton && <div className="flex flex-wrap items-center gap-3">{testButton}</div>
           )}

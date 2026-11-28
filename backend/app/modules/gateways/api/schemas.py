@@ -12,6 +12,7 @@ class GatewayResponse(ResponseModel):
     is_active: bool
     is_configured: bool
     flags: dict[str, bool]
+    values: dict[str, str]
     splits_channels: bool
     telegram_enabled: bool
     cabinet_enabled: bool
@@ -30,13 +31,20 @@ class ReorderGatewaysRequest(BaseModel):
     types: list[PaymentGatewayType]
 
 
+class GatewayFieldConditionResponse(ResponseModel):
+    field: str
+    value: str
+
+
 class GatewayFieldSpecResponse(ResponseModel):
     key: str
-    kind: Literal["text", "secret", "number", "boolean", "url"]
+    kind: Literal["text", "secret", "number", "boolean", "url", "choice"]
+    options: list[str]
     required: bool
     group: Optional[str]
     requires_all_channels: bool
     required_unless: Optional[str]
+    hidden_when: Optional[GatewayFieldConditionResponse]
 
 
 class GatewayCatalogEntryResponse(ResponseModel):

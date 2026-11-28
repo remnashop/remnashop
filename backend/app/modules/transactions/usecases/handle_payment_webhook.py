@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Final, Optional
 
 from loguru import logger
@@ -18,7 +17,7 @@ from app.modules.transactions.events import (
     TransactionPartiallyRefundedEvent,
     TransactionRefundedEvent,
 )
-from app.modules.transactions.fulfillment import dispatch_fulfillment
+from app.modules.transactions.fulfillment import settle_verified_payment
 from app.modules.transactions.gateways.base import (
     PaymentGateway,
     ProviderPayment,
@@ -26,10 +25,10 @@ from app.modules.transactions.gateways.base import (
     WebhookSignal,
 )
 from app.modules.transactions.gateways.factory import PaymentGatewayFactory
+from app.modules.transactions.ports import RecurringOrderHooks
 from app.modules.transactions.repository import TransactionRepository
 from app.modules.transactions.unpaid_orders import (
     UNPAID_FINAL,
-    clear_late_payment,
     give_back_purchase_discount,
 )
 from app.modules.users import UserRepository
@@ -65,7 +64,9 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
         event_publisher: EventPublisher,
         uow: UnitOfWork,
         purchase_dispatch: PurchaseSubscriptionDispatch,
+        recurring_hooks: RecurringOrderHooks,
     ) -> None:
+        self._recurring_hooks = recurring_hooks
         self._user_repository = user_repository
         self._transaction_repository = transaction_repository
         self._gateway_repository = gateway_repository
@@ -135,27 +136,18 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
     async def _mark_paid(
         self, order: TransactionDto, payment: ProviderPayment, gateway_type: PaymentGatewayType
     ) -> bool:
-        async with self._uow:
-            moved = await self._transaction_repository.mark_status_if(
-                order.id,
-                TransactionStatus.PAID,
-                current=frozenset({order.status}),
-                external_payment_id=payment.provider_payment_id or order.external_payment_id,
-            )
-            if not moved:
-                return False
-            if order.is_test:
-                logger.info(f"Test transaction '{order.id}' confirmed by {gateway_type.value}")
-            elif await clear_late_payment(
-                order,
-                transaction_repository=self._transaction_repository,
-                user_repository=self._user_repository,
-                event_publisher=self._event_publisher,
-            ):
-                await self._uow.after_commit(
-                    partial(dispatch_fulfillment, self._purchase_dispatch, order)
-                )
-            return True
+        moved = await settle_verified_payment(
+            order,
+            payment,
+            transaction_repository=self._transaction_repository,
+            user_repository=self._user_repository,
+            event_publisher=self._event_publisher,
+            uow=self._uow,
+            dispatch=self._purchase_dispatch,
+        )
+        if moved and order.is_test:
+            logger.info(f"Test transaction '{order.id}' confirmed by {gateway_type.value}")
+        return moved
 
     @staticmethod
     def _refuse(order: TransactionDto) -> bool:
@@ -189,7 +181,9 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
         status = signal.reported_status
         allowed_from = _REPORTED_FROM.get(status, frozenset())
         order = await self._resolve_order(gateway_type, signal)
-        if order is None or order.status not in allowed_from:
+        if order is not None and order.is_recurring and status is TransactionStatus.CANCELED:
+            allowed_from = allowed_from | {TransactionStatus.FAILED}
+        if order is None or order.status not in allowed_from or order.status is status:
             return
         try:
             confirmed = await gateway.confirm_reported(order, signal)
@@ -208,6 +202,7 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
                 f"reported for order '{order.id}' by {gateway_type.value}; status kept"
             )
             async with self._uow:
+                await self._recurring_hooks.on_refunded(order)
                 await self._event_publisher.publish(
                     TransactionPartiallyRefundedEvent(
                         order_id=order.id,
@@ -218,7 +213,7 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
                     )
                 )
             return
-        await self._apply_reported_status(order, status, gateway_type, allowed_from)
+        await self._apply_reported_status(order, status, gateway_type, allowed_from, signal)
 
     async def _apply_reported_status(
         self,
@@ -226,6 +221,7 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
         status: TransactionStatus,
         gateway_type: PaymentGatewayType,
         allowed_from: frozenset[TransactionStatus],
+        signal: WebhookSignal,
     ) -> None:
         # Only the PENDING -> unpaid transition hands a spent purchase discount
         # back: a second CANCELED for an already-canceled order must not restore
@@ -236,8 +232,19 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
             allowed_from = frozenset({TransactionStatus.PENDING})
         async with self._uow:
             changed = await self._transaction_repository.mark_status_if(
-                order.id, status, current=allowed_from
+                order.id,
+                status,
+                current=allowed_from,
+                external_payment_id=(
+                    signal.provider_payment_id
+                    if order.is_recurring
+                    and gateway_type is PaymentGatewayType.YOOKASSA
+                    and status is TransactionStatus.CANCELED
+                    else None
+                ),
             )
+            if changed and order.is_recurring and status is TransactionStatus.CANCELED:
+                await self._recurring_hooks.on_canceled(order.id, signal.cancellation_reason)
             if changed and restores_discount:
                 await give_back_purchase_discount(
                     self._user_repository, self._transaction_repository, order
@@ -247,6 +254,7 @@ class HandlePaymentWebhookUseCase(UseCase[HandleWebhookDto, WebhookAck]):
                     TransactionCanceledEvent(order_id=order.id, user_id=order.user_id)
                 )
             if changed and status is TransactionStatus.REFUNDED:
+                await self._recurring_hooks.on_refunded(order)
                 await self._event_publisher.publish(
                     TransactionRefundedEvent(
                         order_id=order.id,

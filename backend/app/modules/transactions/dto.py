@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Final, Literal, Optional
 
+from pydantic import Field
+
 from app.core.constants import DEFAULT_PAGE_SIZE, ZERO_AMOUNT
 from app.core.dto import BaseDto, TimestampMixin
 from app.core.enums import (
@@ -61,6 +63,8 @@ class PaymentMethodDto:
     requires_email: bool = False
     # False once the shop sends its own payment email: a customer's would be ignored
     asks_email: bool = True
+    recurring_available: bool = False
+    recurring_required: bool = False
 
 
 class TransactionDto(BaseDto, TimestampMixin):
@@ -97,6 +101,12 @@ class TransactionDto(BaseDto, TimestampMixin):
     added_days: Optional[int] = None
     paid_at: Optional[datetime] = None
     is_test: bool = False
+    recurring_consent_id: Optional[int] = None
+    is_recurring: bool = False
+    yookassa_receipt_vat_code: Optional[int] = None
+    # only from an authenticated provider status response; never leaves the API
+    saved_payment_method_id: Optional[str] = Field(default=None, repr=False)
+    payment_method_shop_id: Optional[str] = None
     fulfillment_hold: Optional[FulfillmentHold] = None
     fulfillment_approved: bool = False
     purchase_discount_returned: bool = False
@@ -135,6 +145,9 @@ class CreateTransactionDto:
     expires_at: datetime
     previous_plan_snapshot: Optional[PlanSnapshot] = None
     is_test: bool = False
+    recurring_consent_id: Optional[int] = None
+    is_recurring: bool = False
+    yookassa_receipt_vat_code: Optional[int] = None
     change_credit: Decimal = ZERO_AMOUNT
 
 
@@ -157,6 +170,9 @@ class StarsPaymentDto:
 
 @dataclass(frozen=True, kw_only=True)
 class CreateCheckoutDto:
+    recurring_consent: bool = False
+    recurring_terms_id: Optional[str] = None
+    consent_event_id: Optional[str] = None
     plan_id: int
     duration_days: int
     currency: Currency

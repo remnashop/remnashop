@@ -196,6 +196,30 @@ async def test_settings_change_is_audited_by_field_name_only(
     assert "secret-key" not in repr(event)
 
 
+async def test_saved_recurring_only_mode_can_be_changed_to_single(
+    gateway_repository,
+    uow,
+    event_publisher,
+):
+    use_case = UpdateGatewaySettingsUseCase(gateway_repository, event_publisher, uow)
+    await use_case(
+        OWNER,
+        UpdateGatewaySettingsDto(
+            type=PaymentGatewayType.YOOKASSA,
+            values={"shop_id": "1", "api_key": "key", "payment_mode": "recurring"},
+        ),
+    )
+    result = await use_case(
+        OWNER,
+        UpdateGatewaySettingsDto(
+            type=PaymentGatewayType.YOOKASSA, values={"payment_mode": "single"}
+        ),
+    )
+    assert result.values["payment_mode"] == "single"
+    raw = await gateway_repository.get_raw_settings(PaymentGatewayType.YOOKASSA)
+    assert raw["payment_mode"] == "single"
+
+
 async def test_channels_change_is_audited(
     gateway_repository: GatewayRepository, uow: UnitOfWork
 ) -> None:

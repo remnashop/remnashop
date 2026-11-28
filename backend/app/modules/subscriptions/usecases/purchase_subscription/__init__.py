@@ -21,6 +21,7 @@ from app.modules.subscriptions.dto import PurchaseSubscriptionDto, SubscriptionD
 from app.modules.subscriptions.eligibility import PurchaseEligibility
 from app.modules.subscriptions.idempotency_repository import PurchaseIdempotencyRepository
 from app.modules.subscriptions.lifecycle import SubscriptionLifecycleService
+from app.modules.subscriptions.ports import RecurringPaymentCloser
 from app.modules.subscriptions.repository import SubscriptionRepository
 from app.modules.subscriptions.usecases.purchase_subscription.change import ChangePurchase
 from app.modules.subscriptions.usecases.purchase_subscription.new import NewPurchase
@@ -46,6 +47,7 @@ class PurchaseSubscriptionUseCase(UseCase[PurchaseSubscriptionDto, SubscriptionD
         user_repository: UserRepository,
         config: AppConfig,
         settings_repository: SettingsRepository,
+        recurring_closer: RecurringPaymentCloser,
     ) -> None:
         self._subscription_repository = subscription_repository
         self._idempotency = idempotency_repository
@@ -78,6 +80,7 @@ class PurchaseSubscriptionUseCase(UseCase[PurchaseSubscriptionDto, SubscriptionD
             remnawave_sdk,
             uow,
             event_publisher,
+            recurring_closer,
             ChangeCreditCalculator(
                 remnawave_sdk, uow, pricing_repository, settings_repository, lifecycle_service
             ),

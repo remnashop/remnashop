@@ -57,7 +57,7 @@ from app.modules.transactions.fulfillment import dispatch_fulfillment
 from app.modules.transactions.gateways.factory import PaymentGatewayFactory
 from app.modules.transactions.gateways.registry import GATEWAY_REGISTRY, gateway_currency
 from app.modules.transactions.gateways.telegram_stars import with_bot_settings
-from app.modules.transactions.ports import PaymentTexts
+from app.modules.transactions.ports import PaymentTexts, RecurringCheckout
 from app.modules.transactions.repository import TransactionRepository
 from app.modules.transactions.unpaid_orders import give_back_purchase_discount
 from app.modules.transactions.waitlist_repository import WaitlistRepository
@@ -100,7 +100,9 @@ class CreateCheckoutUseCase(UseCase[CreateCheckoutDto, CheckoutResultDto, UserDt
         event_publisher: EventPublisher,
         legal_recorder: LegalAcceptanceRecorder,
         payment_texts: PaymentTexts,
+        recurring_checkout: RecurringCheckout,
     ) -> None:
+        self._recurring_checkout = recurring_checkout
         self._pricer = pricer
         self._user_repository = user_repository
         self._gateway_repository = gateway_repository
@@ -170,7 +172,9 @@ class CreateCheckoutUseCase(UseCase[CreateCheckoutDto, CheckoutResultDto, UserDt
                 f"Trial is not available for user '{user_id}'", code=ErrorCode.TRIAL_NOT_AVAILABLE
             )
 
-    async def _cancel_replaced(self, user_id: int, order_id: Optional[int]) -> Optional[int]:
+    async def _cancel_replaced(
+        self, user_id: int, order_id: Optional[int], channel: PurchaseChannel
+    ) -> Optional[int]:
         """Cancels the customer's own unpaid order this checkout replaces, before the
         quote and the cap check see it. Own transaction: the order was abandoned
         either way, even if this checkout fails. A payment arriving for it later is
@@ -184,6 +188,7 @@ class CreateCheckoutUseCase(UseCase[CreateCheckoutDto, CheckoutResultDto, UserDt
             await give_back_purchase_discount(
                 self._user_repository, self._transaction_repository, replaced
             )
+            await self._recurring_checkout.revoke_consent(replaced.recurring_consent_id, channel)
         logger.info(f"Order '{order_id}' of user '{user_id}' canceled, replaced by a new checkout")
         return order_id
 
@@ -194,7 +199,9 @@ class CreateCheckoutUseCase(UseCase[CreateCheckoutDto, CheckoutResultDto, UserDt
                 await self._waitlist_repository.add(actor.id)
             raise PermissionDeniedError("Payments are disabled", code=ErrorCode.PAYMENTS_DISABLED)
 
-        replaced_order_id = await self._cancel_replaced(actor.id, data.replaces_order_id)
+        replaced_order_id = await self._cancel_replaced(
+            actor.id, data.replaces_order_id, data.channel
+        )
 
         async with self._uow:
             plan, user = await self._pricer.load_purchasable_plan(
@@ -245,7 +252,15 @@ class CreateCheckoutUseCase(UseCase[CreateCheckoutDto, CheckoutResultDto, UserDt
             # the one-shot discount is spent in the same transaction as the
             # order, so a racing checkout finds it gone and re-quotes
             await self._spend_purchase_discount(quote, user)
-            order = await self._create_order(actor.id, data, terms, plan, previous_plan)
+            # in the order's transaction: the mandate stays locked until the order commits,
+            # so an automatic charge can't be sent between the check and the order
+            await self._recurring_checkout.hold(actor.id, data)
+            consent_id = await self._recurring_checkout.record_consent(
+                actor, data, plan, quote, terms.gateway_settings
+            )
+            order = await self._create_order(
+                actor.id, data, terms, plan, previous_plan, recurring_consent_id=consent_id
+            )
             # paying accepts the offer on either channel; the client's locale only picks
             # the revision, the customer's language when it sends none
             await self._legal_recorder.record(
@@ -445,6 +460,8 @@ class CreateCheckoutUseCase(UseCase[CreateCheckoutDto, CheckoutResultDto, UserDt
         terms: _OrderTerms,
         plan: PlanDto,
         previous_plan: Optional[PlanSnapshot],
+        *,
+        recurring_consent_id: Optional[int],
     ) -> TransactionDto:
         quote = terms.quote
         return await self._transaction_repository.create(
@@ -482,6 +499,7 @@ class CreateCheckoutUseCase(UseCase[CreateCheckoutDto, CheckoutResultDto, UserDt
                 previous_plan_snapshot=previous_plan,
                 idempotency_key=uuid4().hex,
                 expires_at=datetime_now() + _ORDER_TTL,
+                recurring_consent_id=recurring_consent_id,
             )
         )
 

@@ -1,11 +1,17 @@
 from typing import Final
 
 from app.core.db.uow import UnitOfWork
-from app.core.enums import Locale
+from app.core.enums import Locale, PaymentGatewayType
 from app.core.security.permissions import Permission
 from app.core.usecase import UseCase
 from app.core.utils.telegram_text import premium_emoji_glyphs
-from app.modules.gateways import REQUIRE_PAID_PURCHASE_FIELD_KEY, GatewayRepository, gateway_flags
+from app.modules.gateways import (
+    REQUIRE_PAID_PURCHASE_FIELD_KEY,
+    GatewayRepository,
+    gateway_flags,
+    yookassa_recurring_enabled,
+    yookassa_recurring_required,
+)
 from app.modules.settings import SettingsRepository
 from app.modules.transactions.dto import ListPaymentMethodsDto, PaymentMethodDto
 from app.modules.transactions.gateways.registry import GATEWAY_REGISTRY, gateway_currency
@@ -63,6 +69,10 @@ class ListPaymentMethodsUseCase(UseCase[ListPaymentMethodsDto, list[PaymentMetho
                         requires_email=shop_settings.payment_email is None
                         and gateway_class.requires_customer_email(settings),
                         asks_email=shop_settings.payment_email is None,
+                        recurring_available=gateway.type is PaymentGatewayType.YOOKASSA
+                        and yookassa_recurring_enabled(gateway.values),
+                        recurring_required=gateway.type is PaymentGatewayType.YOOKASSA
+                        and yookassa_recurring_required(gateway.values),
                     )
                 )
         return methods

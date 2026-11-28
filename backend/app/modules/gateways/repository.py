@@ -10,6 +10,7 @@ from app.modules.gateways.dto import PaymentGatewayDto, default_telegram_enabled
 from app.modules.gateways.field_catalog import (
     gateway_flags,
     gateway_splits_channels,
+    gateway_values,
     is_gateway_configured,
 )
 
@@ -30,6 +31,7 @@ class GatewayRepository:
             is_active=row.is_active,
             is_configured=is_gateway_configured(row.type, values),
             flags=gateway_flags(row.type, values),
+            values=gateway_values(row.type, values),
             splits_channels=gateway_splits_channels(row.type, values),
             telegram_enabled=row.telegram_enabled,
             cabinet_enabled=row.cabinet_enabled,
@@ -44,6 +46,7 @@ class GatewayRepository:
             is_active=False,
             is_configured=is_gateway_configured(gateway_type, {}),
             flags=gateway_flags(gateway_type, {}),
+            values=gateway_values(gateway_type, {}),
             telegram_enabled=default_telegram_enabled(gateway_type),
         )
 

@@ -1,11 +1,14 @@
 from pathlib import Path
 from typing import Callable, Final, Optional
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.cli.audit import record_rescue
 from app.cli.legacy.schema import LEGACY_REVISIONS, current_revision
 from app.core.config import AppConfig
 from app.core.constants import BACKUP_DIR
 from app.core.db.standalone import standalone_session
+from app.core.enums import PaymentGatewayType
 from app.modules.backups import (
     ProvenanceResult,
     ProvenanceStatus,
@@ -14,6 +17,7 @@ from app.modules.backups import (
     terminate_other_backends,
     verify_backup_file,
 )
+from app.modules.gateways import GatewayRepository, yookassa_payment_mode
 
 _MESSAGE_BY_STATUS: Final[dict[ProvenanceStatus, str]] = {
     ProvenanceStatus.NATIVE: "native -- produced by this deployment",
@@ -22,6 +26,11 @@ _MESSAGE_BY_STATUS: Final[dict[ProvenanceStatus, str]] = {
     ProvenanceStatus.MALFORMED: "malformed -- trailer present but corrupt, NOT verified",
 }
 _RESTART: Final[str] = "Restart api/telegram/worker on this host now."
+_AUTO_RENEWAL_PAUSED: Final[str] = (
+    "Auto-renewal paused: YooKassa payments made after the backup time are missing from the "
+    "database. Find them in the YooKassa dashboard, fulfil them in the dashboard, then switch "
+    "auto-renewal back on."
+)
 # the old schema has no audit log, and the new api would migrate it again on start
 _LEGACY_RESTORED: Final[str] = (
     "This is an old-version database (revision {revision}), not recorded in the audit log. "
@@ -85,7 +94,20 @@ async def _finish_restore(config: AppConfig) -> str:
     if revision in LEGACY_REVISIONS:
         return _LEGACY_RESTORED.format(revision=revision)
     await _record_restore(config)
-    return _RESTART
+    async with standalone_session(config) as session:
+        paused = await pause_auto_renewal(session)
+        await session.commit()
+    return f"{_AUTO_RENEWAL_PAUSED} {_RESTART}" if paused else _RESTART
+
+
+async def pause_auto_renewal(session: AsyncSession) -> bool:
+    # charges made after the backup aren't in the dump: the worker would repeat them
+    gateways = GatewayRepository(session)
+    settings = await gateways.get_raw_settings(PaymentGatewayType.YOOKASSA)
+    if yookassa_payment_mode(settings) == "single":
+        return False
+    await gateways.update_settings(PaymentGatewayType.YOOKASSA, {"payment_mode": "single"})
+    return True
 
 
 async def _restored_revision(config: AppConfig) -> Optional[str]:

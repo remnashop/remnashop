@@ -3,8 +3,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aiogram_dialog import StartMode
+from aiogram_dialog.widgets.kbd import Button
+from aiogram_dialog.widgets.text import Format
 from dishka.integrations.aiogram_dialog import CONTAINER_NAME
 
+import app.telegram.routers.subscriptions.handlers as handlers
 from app.core.constants import USER_KEY
 from app.core.enums import Locale
 from app.core.error_codes import ErrorCode
@@ -13,6 +16,7 @@ from app.telegram.dialogs.context import SELECTED_SUBSCRIPTION_KEY
 from app.telegram.routers.subscriptions.handlers import (
     DEVICES_FROM_MENU_KEY,
     SELECTED_HWID_KEY,
+    on_auto_renew,
     on_device_delete_confirm,
     on_device_name_clear,
     on_device_name_input,
@@ -50,6 +54,40 @@ def _i18n() -> MagicMock:
     i18n = MagicMock()
     i18n.get_translator_by_locale.return_value = MagicMock(get=lambda key, **kwargs: key)
     return i18n
+
+
+async def test_repeated_taps_on_disable_never_reenable_auto_renewal() -> None:
+    manager = _manager({}, {SELECTED_SUBSCRIPTION_KEY: 7})
+    set_recurring = AsyncMock(return_value=MagicMock(enabled=False))
+    widget = Button(Format("Disable"), id="auto_renew_off")
+    for _ in range(2):
+        await on_auto_renew.__dishka_orig_func__(
+            AsyncMock(), widget, manager, set_recurring=set_recurring, i18n=_i18n()
+        )
+    assert set_recurring.await_count == 2
+    assert all(call.args[1].enabled is False for call in set_recurring.await_args_list)
+
+
+async def test_enabling_against_changed_terms_says_so(monkeypatch) -> None:
+    notices: list[str] = []
+
+    async def notice(callback: object, text: str) -> None:
+        notices.append(text)
+
+    monkeypatch.setattr(handlers, "answer_notice", notice)
+    manager = _manager({"auto_renew_terms_id": "a" * 64}, {SELECTED_SUBSCRIPTION_KEY: 7})
+    manager.item_id = "a" * 16
+    set_recurring = AsyncMock(
+        side_effect=ValidationError("x", code=ErrorCode.RECURRING_TERMS_CHANGED)
+    )
+    await on_auto_renew.__dishka_orig_func__(
+        AsyncMock(),
+        Button(Format("Enable"), id="auto_renew_on"),
+        manager,
+        set_recurring=set_recurring,
+        i18n=_i18n(),
+    )
+    assert notices == ["ntf-recurring.terms-changed"]
 
 
 async def test_open_subscriptions_with_the_only_one_allowed_goes_straight_to_the_card() -> None:
@@ -342,3 +380,17 @@ async def test_clearing_the_name_of_a_removed_device_returns_to_the_list() -> No
     assert rename_device.await_args.args[1].name is None
     callback.answer.assert_awaited_once_with("ntf-devices.gone")
     manager.switch_to.assert_awaited_once_with(state=Subscriptions.DEVICES)
+
+
+async def test_a_stale_enable_button_cannot_accept_changed_subscription_terms():
+    manager = _manager({"auto_renew_terms_id": "1" * 64}, {SELECTED_SUBSCRIPTION_KEY: 7})
+    manager.item_id = "0" * 16
+    set_recurring = AsyncMock()
+    await on_auto_renew.__dishka_orig_func__(
+        AsyncMock(),
+        Button(Format("Enable"), id="auto_renew_on"),
+        manager,
+        set_recurring=set_recurring,
+        i18n=_i18n(),
+    )
+    set_recurring.assert_not_awaited()

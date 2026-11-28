@@ -20,7 +20,12 @@ from app.core.enums import (
     PurchaseType,
 )
 from app.core.error_codes import ErrorCode
-from app.core.exceptions import PaymentGatewayError, PermissionDeniedError, ValidationError
+from app.core.exceptions import (
+    ConflictError,
+    PaymentGatewayError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from app.modules.dialogs import catalog
 from app.modules.subscriptions import CatalogDurationDto, CatalogPlanDto, PlanCatalogDto
 from app.modules.subscriptions.dto import CatalogPriceDto
@@ -203,6 +208,13 @@ async def test_checkout_error_maps_to_a_notification_key() -> None:
         "ntf-access.payments-disabled"
     )
     assert checkout_error_key(PaymentGatewayError("x")) == "ntf-purchase.failed"
+    # a moved price says nothing about auto-renewal: most shops never enable it
+    assert checkout_error_key(ConflictError("x", code=ErrorCode.PRICE_CHANGED)) == (
+        "ntf-purchase.price-changed"
+    )
+    assert checkout_error_key(ConflictError("x", code=ErrorCode.RECURRING_TERMS_CHANGED)) == (
+        "ntf-recurring.terms-changed"
+    )
 
 
 def test_price_label_uses_the_anchor_currency() -> None:
@@ -374,6 +386,7 @@ def _confirm_data(purchase_type: str) -> dict:
         "duration_days": 30,
         "currency": "RUB",
         "gateway_type": "YOOKASSA",
+        "prices": {"RUB": "199"},
     }
 
 
@@ -405,6 +418,7 @@ async def test_confirm_with_a_payment_link_opens_the_pay_step() -> None:
             purchase_type=PurchaseType.RENEW,
             gateway_type=PaymentGatewayType.YOOKASSA,
             target_subscription_id=3,
+            expected_price=Decimal("199"),
         ),
     )
     assert manager.dialog_data["payment_url"] == "https://pay"

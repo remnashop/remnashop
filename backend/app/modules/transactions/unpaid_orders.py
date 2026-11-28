@@ -9,7 +9,8 @@ from app.modules.transactions.events import PaidOrderNotFulfilledEvent
 from app.modules.transactions.repository import TransactionRepository
 from app.modules.users import UserRepository
 
-# closed by the gateway (or the expiry sweep) without a payment
+# Closed locally or by the gateway. A failed request can still have reached
+# the provider, so a late paid notification must be verified before fulfillment.
 UNPAID_FINAL: Final[frozenset[TransactionStatus]] = frozenset(
     {TransactionStatus.CANCELED, TransactionStatus.FAILED}
 )

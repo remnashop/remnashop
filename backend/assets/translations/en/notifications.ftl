@@ -605,6 +605,60 @@ ntf-customer-referral-attached = Someone joined through your invite link.{ $rewa
     .title = You invited a friend!
     .emoji = 🎉
 
+ntf-recurring-reason = { $reason ->
+    [admin_closed] payment waiting was closed by an administrator
+    [customer_disabled] auto-renewal was disabled by the customer
+    [bank_declined] the bank declined the payment
+    [insufficient_funds] insufficient funds
+    [issuer_unavailable] the issuing bank is temporarily unavailable
+    [payment_method_unavailable] the payment method is temporarily unavailable
+    [provider_unavailable] the payment provider is unavailable
+    [merchant_unavailable] the shop cannot process payments
+    [provider_configuration_error] the payment or receipt configuration requires correction
+    [provider_request_rejected] YooKassa refused the charge to the saved card: the card was declined or the shop settings are wrong
+    [provider_rejected] the payment provider rejected the request
+    [permission_revoked] the payment provider mandate was revoked
+    [payment_method_restricted] the saved payment method is no longer valid
+    [card_expired] the card has expired
+    [fraud_suspected] the bank blocked the payment
+    [price_changed] the price exceeds the agreed limit
+    [subscription_changed] the subscription terms changed
+    [shop_changed] the payment shop changed
+    [consent_required] consent to renewal terms is required
+    [plan_unavailable] the plan is not available for purchase
+    [customer_email_required] an email address is required for the receipt
+    [gateway_disabled] the shop disabled recurring payments
+    [subscription_unavailable] the subscription cannot be renewed
+    [payment_status_unknown] the previous payment outcome is unknown
+    [pending_timeout] the payment has been pending too long
+    [retries_exhausted] payment retries were exhausted
+    [payment_method_not_saved] the payment provider did not save the payment method
+    [renewal_window_expired] the agreed renewal retry window expired
+    [refunded] a payment for the subscription was refunded
+   *[other] there was an issue with automatic payment
+    }
+ntf-recurring-payment-upcoming = Subscription #{ $subscription_id }: a charge of up to { $amount } { $currency } is scheduled for { $scheduled_at }.
+    .title = Upcoming automatic payment
+ntf-recurring-payment-failed = Subscription #{ $subscription_id }, order #{ $order_id }: attempt #{ $attempt } failed because { $reason_text }.
+    .title = Automatic payment failed
+ntf-recurring-payment-paused = Subscription #{ $subscription_id }: automatic payments paused because { $reason_text }.
+    .title = Auto-renewal needs attention
+ntf-recurring-payment-exhausted = Subscription #{ $subscription_id }: payment retries ended because { $reason_text }. Manual renewal is required.
+    .title = Automatic renewal failed
+ntf-customer-recurring-payment-upcoming = An automatic charge of up to { $money } for subscription #{ $subscription_id } is scheduled for { $scheduled_at }. Check your balance. You can stop future charges in this subscription's settings in the bot.
+    .title = Your subscription will renew soon
+ntf-customer-recurring-payment-failed = We could not automatically pay for your subscription because { $reason_text }. { $has_next_attempt ->
+    [yes] Next attempt: { $next_attempt_at }.
+   *[no] Another attempt has not been scheduled yet.
+    } Check your balance or renew manually.
+    .title = Automatic payment failed
+ntf-customer-recurring-payment-paused = Automatic renewal is paused because { $reason_text }. { $has_next_attempt ->
+    [yes] The next check is scheduled for { $next_attempt_at }.
+   *[no] Check your subscription settings or contact support.
+    } Your paid period remains available.
+    .title = Check your auto-renewal settings
+ntf-customer-recurring-payment-exhausted = We could not automatically renew your subscription because { $reason_text }. Automatic renewal has stopped. Renew manually to keep your access.
+    .title = Your subscription needs renewal
 # the payment page and the fiscal receipt name the order with this
 payment-description = Subscription “{ $plan }”, { $period }
 payment-period = { $unit ->
@@ -622,3 +676,16 @@ payment-period = { $unit ->
        *[other] { $value } days
     }
 }
+# auto-renewal terms the customer accepts; the accepted text is stored with the consent
+recurring-terms-summary = With your consent, auto-renewal saves your payment method with YooKassa and authorizes automatic charges up to { $amount } { $currency } every { $days } days, starting { $lead_minutes } min. before expiry. Stop future charges in your subscription settings in the bot or the web account.
+recurring-terms-text =
+    Automatic renewal terms
+
+    Current payment: { $initial } { $currency }.
+    Renewals: up to { $amount } { $currency } every { $days } days. One-time discounts do not apply to renewals. Charges stop if the price exceeds this limit or the plan terms change.
+
+    Payment starts { $lead_minutes } min. before the paid period expires. A bank decline may be retried at { $retry_hours } hours from the first failure, within the agreed window. A temporary failure may be retried every { $retry_minutes } min.; new attempts stop { $overdue_hours } hours after expiry. A payment already submitted may complete later.
+
+    By consenting, you authorize saving your payment method through YooKassa and using it to renew this subscription without confirming each charge.
+
+    Withdraw consent and stop future charges with Disable auto-renewal in your subscription settings in the bot or the web account. Withdrawal stops new attempts; a payment already submitted may complete. Your paid period remains available. The saved payment method is deleted { $retention_days } days after withdrawal. Reconnection requires fresh explicit consent.

@@ -1,8 +1,10 @@
 from typing import Any, cast
 
 import pytest
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db.models import Transaction
 from app.core.db.uow import UnitOfWork
 from app.core.enums import PaymentOutcome, PurchaseChannel
 from app.modules.customer_notifications.dto import ShowPaymentCanceledDto
@@ -81,6 +83,19 @@ async def test_cancel_skipped_for_cabinet_order(fx: _Fixture) -> None:
 async def test_cancel_skipped_without_telegram(fx: _Fixture, fields: dict[str, Any]) -> None:
     user = await fx.create_user(name="a", **fields)
     order_id = await fx.order(user, PurchaseChannel.BOT, "cancel-4")
+
+    await fx.cancel(order_id)
+
+    assert fx.signals.outcomes == []
+
+
+async def test_recurring_cancel_does_not_reset_bot_screen(fx: _Fixture) -> None:
+    user = await fx.create_user(name="r", telegram_id=8199)
+    order_id = await fx.order(user, PurchaseChannel.BOT, "cancel-recurring")
+    async with fx.uow:
+        await fx.orders.session.execute(
+            update(Transaction).where(Transaction.id == order_id).values(is_recurring=True)
+        )
 
     await fx.cancel(order_id)
 

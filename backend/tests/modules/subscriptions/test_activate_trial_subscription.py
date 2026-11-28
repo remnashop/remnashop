@@ -34,6 +34,7 @@ from app.modules.subscriptions.usecases import (
 )
 from app.modules.users.dto import CreateUserDto, UpdateUserDto
 from app.modules.users.repository import UserRepository
+from tests.fakes.recurring import make_recurring_lifecycle
 from tests.fakes.telegram_bot import FakeBotSession, use_fake_bot
 from tests.modules.subscriptions.factories import make_eligibility
 
@@ -86,6 +87,7 @@ async def test_activates_a_trial_and_spends_the_flag(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     use_case = ActivateTrialSubscriptionUseCase(
         user_repository,
@@ -138,6 +140,7 @@ async def test_rejects_when_the_flag_is_already_spent(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     use_case = ActivateTrialSubscriptionUseCase(
         user_repository,
@@ -180,6 +183,7 @@ async def test_a_second_activation_with_a_stale_actor_is_rejected(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     use_case = ActivateTrialSubscriptionUseCase(
         user_repository,
@@ -225,6 +229,7 @@ async def test_a_failed_activation_gives_the_trial_back(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
 
     async def _panel_down(*_args: object, **_kwargs: object) -> None:
@@ -272,6 +277,7 @@ async def test_a_paid_trial_is_not_activated_for_free(
         UserRepository(subscription_repository.session),
         AppConfig.get(),
         SettingsRepository(subscription_repository.session),
+        recurring_closer=make_recurring_lifecycle(subscription_repository.session),
     )
     use_case = ActivateTrialSubscriptionUseCase(
         user_repository,
@@ -346,6 +352,7 @@ async def test_mini_app_trial_needs_the_guarded_channel(
             UserRepository(session),
             AppConfig.get(),
             SettingsRepository(session),
+            recurring_closer=make_recurring_lifecycle(subscription_repository.session),
         ),
         uow,
     )

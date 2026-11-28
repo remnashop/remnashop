@@ -34,6 +34,7 @@ from app.modules.subscriptions.panel import (
     revert_panel_to_owner,
     subscription_row,
 )
+from app.modules.subscriptions.ports import RecurringPaymentCloser
 from app.modules.subscriptions.repository import SubscriptionRepository
 from app.modules.subscriptions.unlimited import expiry_after, term_anchor, term_days
 
@@ -70,6 +71,7 @@ class ChangePurchase:
         remnawave_sdk: RemnawaveSDK,
         uow: UnitOfWork,
         event_publisher: EventPublisher,
+        recurring_closer: RecurringPaymentCloser,
         change_credit_calculator: ChangeCreditCalculator,
         lifecycle_service: SubscriptionLifecycleService,
         settings_repository: SettingsRepository,
@@ -79,6 +81,7 @@ class ChangePurchase:
         self._remnawave_sdk = remnawave_sdk
         self._uow = uow
         self._event_publisher = event_publisher
+        self._recurring_closer = recurring_closer
         self._change_credit_calculator = change_credit_calculator
         self._lifecycle_service = lifecycle_service
         self._settings_repository = settings_repository
@@ -138,6 +141,8 @@ class ChangePurchase:
             async with self._uow:
                 # a second plan change or a delete may have raced this one
 
+                # Keep order/mandate/subscription locking consistent with the debit worker.
+                await self._recurring_closer.close_for_plan_change(old.id)
                 locked_old = await self._subscription_repository.get_by_id_for_update(old.id)
                 if locked_old.status is SubscriptionStatus.DELETED:
                     raise SupersededError(

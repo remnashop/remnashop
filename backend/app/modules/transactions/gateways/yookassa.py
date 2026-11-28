@@ -1,6 +1,7 @@
 import time
 from dataclasses import replace
 from typing import Any, Final, Optional
+from urllib.parse import quote
 
 import httpx
 import orjson
@@ -47,17 +48,26 @@ _PAYMENT_MODE: Final[str] = "full_payment"
 def _build_receipt(
     order: TransactionDto, text: PaymentTextDto, settings: YooKassaSettings
 ) -> Optional[dict[str, object]]:
-    if not order.customer_email or settings.vat_code is None:
+    vat_code = order.yookassa_receipt_vat_code if order.is_recurring else settings.vat_code
+    if not order.customer_email or vat_code is None:
         return None
     item: dict[str, object] = {
         "description": text.description,
         "quantity": "1.00",
         "amount": {"value": f"{order.final_price:.2f}", "currency": order.currency.value},
-        "vat_code": int(settings.vat_code),
+        "vat_code": int(vat_code),
         "payment_subject": _PAYMENT_SUBJECT,
         "payment_mode": _PAYMENT_MODE,
     }
     return {"customer": {"email": order.customer_email}, "items": [item]}
+
+
+def _account_for(settings: YooKassaSettings, *, in_telegram: bool) -> Optional[str]:
+    if settings.relay_enabled:
+        return RELAY_ACCOUNT
+    if settings.splits_channels and not in_telegram:
+        return settings.cabinet_shop_id
+    return settings.shop_id
 
 
 # Docs: https://yookassa.ru/developers
@@ -88,12 +98,27 @@ class YooKassaGateway(PaymentGateway[YooKassaSettings]):
 
     @classmethod
     def account_for(cls, settings: dict[str, str], *, in_telegram: bool) -> Optional[str]:
+        return _account_for(YooKassaSettings.from_values(settings), in_telegram=in_telegram)
+
+    @classmethod
+    def shop_takes_payments(cls, settings: dict[str, str], account: str) -> bool:
+        # a saved card is charged only in the shop that saved it, while that shop takes payments
         parsed = YooKassaSettings.from_values(settings)
-        if parsed.relay_enabled:
-            return RELAY_ACCOUNT
-        if parsed.splits_channels and not in_telegram:
-            return parsed.cabinet_shop_id
-        return parsed.shop_id
+        return account in {
+            _account_for(parsed, in_telegram=True),
+            _account_for(parsed, in_telegram=False),
+        }
+
+    def takes_payments_into(self, account: str) -> bool:
+        return self.shop_takes_payments(self._values, account)
+
+    @staticmethod
+    def payment_matches(order: TransactionDto, payment: ProviderPayment) -> bool:
+        return (
+            payment.amount == order.final_price
+            and payment.currency == order.currency.value
+            and PaymentGateway.payment_matches(order, payment)
+        )
 
     def is_signed_notification(self, request: WebhookRequest) -> bool:
         # relayed: parse_webhook checks paygate's signature instead of the source IP;
@@ -178,10 +203,9 @@ class YooKassaGateway(PaymentGateway[YooKassaSettings]):
         if not safe_equals(signature, expected, ignore_case=True):
             raise PaymentGatewayError("YooKassa relay webhook signature mismatch")
 
-    async def create_payment(self, order: TransactionDto, text: PaymentTextDto) -> PaymentIntent:
+    def _payment_body(self, order: TransactionDto, text: PaymentTextDto) -> dict[str, object]:
         body: dict[str, object] = {
             "amount": {"value": f"{order.final_price:.2f}", "currency": order.currency.value},
-            "confirmation": {"type": "redirect", "return_url": self._return_url},
             "capture": True,
             "description": text.description,
             "metadata": {"order_ref": order.idempotency_key},
@@ -189,7 +213,35 @@ class YooKassaGateway(PaymentGateway[YooKassaSettings]):
         receipt = _build_receipt(order, text, self.settings)
         if receipt is not None:
             body["receipt"] = receipt
+        return body
 
+    async def create_payment(self, order: TransactionDto, text: PaymentTextDto) -> PaymentIntent:
+        body = self._payment_body(order, text)
+        body["confirmation"] = {"type": "redirect", "return_url": self._return_url}
+        # Explicit false also suppresses YooKassa's conditional-save checkbox.
+        body["save_payment_method"] = (
+            self.settings.recurring_enabled
+            and order.recurring_consent_id is not None
+            and not order.is_test
+        )
+
+        data = await self._post_payment(order, body)
+        return PaymentIntent(
+            confirmation_url=str(data["confirmation"]["confirmation_url"]),
+            provider_payment_id=str(data["id"]),
+        )
+
+    async def create_recurring_payment(
+        self, order: TransactionDto, text: PaymentTextDto, payment_method_id: str
+    ) -> PaymentIntent:
+        if not self.settings.recurring_enabled or not order.is_recurring or not payment_method_id:
+            raise PaymentGatewayError("Recurring payments are not enabled for this order")
+        body = self._payment_body(order, text)
+        body["payment_method_id"] = payment_method_id
+        data = await self._post_payment(order, body)
+        return PaymentIntent(confirmation_url=None, provider_payment_id=str(data["id"]))
+
+    async def _post_payment(self, order: TransactionDto, body: dict[str, object]) -> dict[str, Any]:
         data = await self._request(
             "POST",
             "/payments",
@@ -197,10 +249,9 @@ class YooKassaGateway(PaymentGateway[YooKassaSettings]):
             body=body,
             headers={"Idempotence-Key": order.idempotency_key},
         )
-        return PaymentIntent(
-            confirmation_url=str(data["confirmation"]["confirmation_url"]),
-            provider_payment_id=str(data["id"]),
-        )
+        if not isinstance(data, dict) or not isinstance(data.get("id"), str) or not data["id"]:
+            raise PaymentGatewayError("YooKassa returned no payment ID")
+        return data
 
     async def parse_webhook(self, request: WebhookRequest) -> Optional[WebhookSignal]:
         # YooKassa doesn't sign notifications (fetch_payment is the check); paygate does
@@ -228,26 +279,72 @@ class YooKassaGateway(PaymentGateway[YooKassaSettings]):
         )
 
     async def fetch_payment(self, order: TransactionDto, signal: WebhookSignal) -> ProviderPayment:
-        if not order.external_payment_id:
+        # the callback's id covers a lost or late create response; confirm still verifies it
+        payment_id = order.external_payment_id or signal.provider_payment_id
+        if not payment_id:
             return NOT_PAID
         data = await self._request(
             "GET",
-            f"/payments/{order.external_payment_id}",
+            f"/payments/{quote(payment_id, safe='')}",
             order.gateway_account,
             timeout=PROVIDER_API_TIMEOUT_S,
         )
+        if data.get("id") != payment_id:
+            raise PaymentGatewayError("YooKassa returned a different payment ID")
         amount = data.get("amount") or {}
+        method = data.get("payment_method") or {}
+        if not isinstance(amount, dict) or not isinstance(method, dict):
+            raise PaymentGatewayError("YooKassa returned malformed payment data")
+        paid_amount = to_decimal(amount.get("value"))
+        currency = amount.get("currency")
+        if paid_amount is None or not isinstance(currency, str):
+            raise PaymentGatewayError("YooKassa returned no valid amount or currency")
+        method_id = method.get("id")
+        saved_method = (
+            method_id
+            if method.get("saved") is True
+            and isinstance(method_id, str)
+            and 0 < len(method_id) <= 128
+            else None
+        )
+        cancellation = data.get("cancellation_details")
+        reason = cancellation.get("reason") if isinstance(cancellation, dict) else None
         return ProviderPayment(
+            cancellation_reason=reason if isinstance(reason, str) and len(reason) <= 64 else None,
             paid=data.get("status") == _PAID_STATUS and data.get("paid") is True,
-            amount=to_decimal(amount.get("value")),
-            currency=amount.get("currency"),
+            amount=paid_amount,
+            currency=currency,
             reference=str((data.get("metadata") or {}).get("order_ref") or ""),
             provider_payment_id=str(data.get("id") or order.external_payment_id),
+            saved_payment_method_id=saved_method,
+            # the card lives in the shop the order was paid into; None: the main shop
+            payment_method_shop_id=(
+                (order.gateway_account or self.settings.shop_id) if saved_method else None
+            ),
+            status={
+                _PAID_STATUS: TransactionStatus.PAID,
+                _CANCELED_STATUS: TransactionStatus.CANCELED,
+            }.get(str(data.get("status")), TransactionStatus.PENDING),
         )
 
     async def confirm_reported(
         self, order: TransactionDto, signal: WebhookSignal
     ) -> Optional[WebhookSignal]:
+        # Cancellation callbacks can also recover the ID lost with the create response.
+        if signal.reported_status is TransactionStatus.CANCELED:
+            payment = await self.fetch_payment(order, signal)
+            if (
+                payment.status is not TransactionStatus.CANCELED
+                or payment.reference != order.idempotency_key
+                or payment.amount != order.final_price
+                or payment.currency != order.currency.value
+            ):
+                return None
+            return replace(
+                signal,
+                provider_payment_id=payment.provider_payment_id,
+                cancellation_reason=payment.cancellation_reason,
+            )
         # notifications are unsigned, and a refund also claws back referral rewards
         if not order.external_payment_id:
             return None
@@ -263,4 +360,4 @@ class YooKassaGateway(PaymentGateway[YooKassaSettings]):
             if not amount:
                 return None
             return replace(signal, refund_amount=amount, refund_currency=refunded.get("currency"))
-        return signal if data.get("status") == _CANCELED_STATUS else None
+        return None

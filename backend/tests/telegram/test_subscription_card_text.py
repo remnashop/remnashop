@@ -21,6 +21,7 @@ def _card(**kwargs: object) -> str:
         "expire_at_local": "01.01.2027",
         "traffic_limit": 0,
         "device_limit": 0,
+        "auto_renew": "",
         "grace": "",
     }
     text = runner.get("msg-subscription-card", **{**args, **kwargs})
@@ -53,6 +54,7 @@ def _rendered(**kwargs: object) -> str:
         "expire_at_local": "01.01.2027",
         "traffic_limit": 50,
         "device_limit": 3,
+        "auto_renew": "",
         "grace": "",
     }
     runner = hub.get_translator_by_locale(Locale.EN.value)
@@ -62,6 +64,12 @@ def _rendered(**kwargs: object) -> str:
 def test_card_names_a_trial() -> None:
     assert _rendered(is_trial=1).startswith("<b>🎁 Trial subscription · Pro</b>")
     assert _rendered().startswith("<b>💳 Subscription · Pro</b>")
+
+
+def test_card_carries_the_auto_renewal_block_as_a_variable() -> None:
+    text = _rendered(auto_renew=TrustedHtml("<b>Auto-renewal is on</b>"))
+    assert text.endswith("<b>Auto-renewal is on</b>")
+    assert not _rendered().rstrip().endswith("</blockquote>\n")
 
 
 def test_card_shows_a_grace_line_only_in_grace() -> None:

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 
 import { DEFAULT_PAGE_SIZE, getTransactionSummary, hasDiscount, totalDiscountPercent, PAYMENT_STATUS_BADGE_TONE, PAYMENT_STATUS_DOT_CLASSNAME, PURCHASE_TYPES, listTransactionGateways, listTransactionsAfter, UNFULFILLED_STATUS, type TransactionItem, type TransactionListFilters, type TransactionStatus, type TransactionSummary, type PurchaseType } from "@entities/transactions/api";
 import { transactionGatewayLabel } from "@entities/transactions/display";
@@ -42,8 +42,9 @@ import { SelectDropdown } from "@shared/ui/SelectDropdown";
 import { RefetchSpinner, Spinner } from "@shared/ui/Spinner";
 import { Badge } from "@shared/ui/Badge";
 import { IconCircle } from "@shared/ui/glass/IconCircle";
-import { GLASS_LIST_HEAD_CLASS, LIST_BODY_CLASS, LIST_SCROLL_X_CLASS, PAGE_CLASS, PAGE_SCROLL_UNDER_BAR_CLASS, PAGE_TOOLBAR_CLASS } from "@shared/ui/classes";
+import { GLASS_LIST_HEAD_CLASS, LIST_BODY_CLASS, LIST_SCROLL_X_CLASS, PAGE_BAR_CLASS, PAGE_CLASS, PAGE_SCROLL_UNDER_BAR_CLASS } from "@shared/ui/classes";
 import { ListRow } from "@shared/ui/ListRow";
+import { TransactionsTabs } from "@pages/transactions/TransactionsTabs";
 import { allValues } from "@shared/lib/all-values";
 
 const STATUSES = allValues<TransactionStatus>()(["PENDING", "PAID", "FAILED", "CANCELED", "REFUNDED"]);
@@ -61,7 +62,7 @@ const ROW_GRID_CLASSNAME = "grid grid-cols-[32px_minmax(0,1fr)_140px_150px_80px_
 
 const STATUS_FILTERS: readonly string[] = [...STATUSES, UNFULFILLED_STATUS];
 
-export function TransactionsPage() {
+function TransactionsListPage() {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   // `?status=` comes from the overview's attention links
@@ -164,81 +165,85 @@ export function TransactionsPage() {
 
   return (
     <div data-fills-main className={PAGE_CLASS}>
-      <div className={PAGE_TOOLBAR_CLASS}>
-        <div className="min-w-40 flex-1 md:min-w-0">
-          <SelectDropdown
-            id="transactions-status"
-            value={status}
-            onChange={setStatus}
-            icon={Filter}
-            size="compact"
-            glassPopover
-            placeholder={t("transactions.filters.statusAll")}
-            options={[
-              { value: "", label: t("transactions.filters.statusAll"), icon: Filter },
-              ...STATUSES.map((value) => ({
-                value,
-                label: t(`transactions.status.${value}`),
-                icon: STATUS_DOT_ICONS[value],
-              })),
-              { value: UNFULFILLED_STATUS, label: t("transactions.filters.unfulfilled"), icon: PackageX },
-            ]}
-          />
-        </div>
-        {canFilterByGateway && (
+      <div className={`${PAGE_BAR_CLASS} flex flex-wrap items-center gap-5 md:flex-nowrap`}>
+        <TransactionsTabs active="orders" />
+        {/* filters share one glass strip beside the tabs */}
+        <div className="glass-panel flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-3xl p-1.5 md:flex-nowrap">
           <div className="min-w-40 flex-1 md:min-w-0">
             <SelectDropdown
-              id="transactions-gateway"
-              value={gatewayType}
-              onChange={setGatewayType}
-              icon={Wallet}
+              id="transactions-status"
+              value={status}
+              onChange={setStatus}
+              icon={Filter}
               size="compact"
               glassPopover
-              placeholder={t("transactions.filters.gatewayAll")}
+              placeholder={t("transactions.filters.statusAll")}
               options={[
-                { value: "", label: t("transactions.filters.gatewayAll"), icon: Wallet },
-                ...gatewayOptions.map((type) => {
-                  const label = t(`settings.gateways.types.${type}` as ParseKeys);
-                  return { value: type, label, icon: letterIcon(label) };
-                }),
+                { value: "", label: t("transactions.filters.statusAll"), icon: Filter },
+                ...STATUSES.map((value) => ({
+                  value,
+                  label: t(`transactions.status.${value}`),
+                  icon: STATUS_DOT_ICONS[value],
+                })),
+                { value: UNFULFILLED_STATUS, label: t("transactions.filters.unfulfilled"), icon: PackageX },
               ]}
             />
           </div>
-        )}
-        <div className="min-w-40 flex-1 md:min-w-0">
-          <SelectDropdown
-            id="transactions-purchase-type"
-            value={purchaseType}
-            onChange={setPurchaseType}
-            icon={Repeat}
-            size="compact"
-            glassPopover
-            placeholder={t("transactions.filters.purchaseTypeAll")}
-            options={[
-              { value: "", label: t("transactions.filters.purchaseTypeAll"), icon: Repeat },
-              ...PURCHASE_TYPES.map((type) => ({
-                value: type,
-                label: t(`transactions.purchaseType.${type}`),
-                icon: PURCHASE_TYPE_ICONS[type],
-              })),
-            ]}
-          />
-        </div>
-        <div className="min-w-40 flex-1 md:min-w-0">
-          <SelectDropdown
-            id="transactions-period"
-            value={String(period)}
-            onChange={(value) => setPeriod(Number(value) as PeriodDays)}
-            icon={CalendarRange}
-            size="compact"
-            glassPopover
-            placeholder={t("dashboard.periodAll")}
-            options={PERIOD_DAYS.map((days) => ({
-              value: String(days),
-              label: days === 0 ? t("dashboard.periodAll") : t("dashboard.periodDays", { count: days }),
-              icon: CalendarRange,
-            }))}
-          />
+          {canFilterByGateway && (
+            <div className="min-w-40 flex-1 md:min-w-0">
+              <SelectDropdown
+                id="transactions-gateway"
+                value={gatewayType}
+                onChange={setGatewayType}
+                icon={Wallet}
+                size="compact"
+                glassPopover
+                placeholder={t("transactions.filters.gatewayAll")}
+                options={[
+                  { value: "", label: t("transactions.filters.gatewayAll"), icon: Wallet },
+                  ...gatewayOptions.map((type) => {
+                    const label = t(`settings.gateways.types.${type}` as ParseKeys);
+                    return { value: type, label, icon: letterIcon(label) };
+                  }),
+                ]}
+              />
+            </div>
+          )}
+          <div className="min-w-40 flex-1 md:min-w-0">
+            <SelectDropdown
+              id="transactions-purchase-type"
+              value={purchaseType}
+              onChange={setPurchaseType}
+              icon={Repeat}
+              size="compact"
+              glassPopover
+              placeholder={t("transactions.filters.purchaseTypeAll")}
+              options={[
+                { value: "", label: t("transactions.filters.purchaseTypeAll"), icon: Repeat },
+                ...PURCHASE_TYPES.map((type) => ({
+                  value: type,
+                  label: t(`transactions.purchaseType.${type}`),
+                  icon: PURCHASE_TYPE_ICONS[type],
+                })),
+              ]}
+            />
+          </div>
+          <div className="min-w-40 flex-1 md:min-w-0">
+            <SelectDropdown
+              id="transactions-period"
+              value={String(period)}
+              onChange={(value) => setPeriod(Number(value) as PeriodDays)}
+              icon={CalendarRange}
+              size="compact"
+              glassPopover
+              placeholder={t("dashboard.periodAll")}
+              options={PERIOD_DAYS.map((days) => ({
+                value: String(days),
+                label: days === 0 ? t("dashboard.periodAll") : t("dashboard.periodDays", { count: days }),
+                icon: CalendarRange,
+              }))}
+            />
+          </div>
         </div>
       </div>
 
@@ -442,4 +447,13 @@ export function TransactionsPage() {
       )}
     </div>
   );
+}
+
+export function TransactionsPage() {
+  const permissions = usePermissions();
+  // the sidebar links here for either permission
+  if (!permissions.includes("TRANSACTIONS_VIEW") && permissions.includes("TRANSACTIONS_RECURRING_VIEW")) {
+    return <Navigate to="/dashboard/transactions/recurring" replace />;
+  }
+  return <TransactionsListPage />;
 }

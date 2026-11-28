@@ -4,7 +4,7 @@ import dataclasses
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Final, Optional
+from typing import Any, Final, Optional
 from uuid import uuid4
 
 import httpx
@@ -19,6 +19,7 @@ from app.core.db.models import (
     EventOutboxEntry,
     Plan,
     PricingSettings,
+    RecurringPayment,
     ShopSettings,
     Subscription,
     Transaction,
@@ -43,6 +44,7 @@ from app.core.enums import (
 )
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import (
+    ConflictError,
     NotFoundError,
     PaymentGatewayError,
     PermissionDeniedError,
@@ -101,6 +103,7 @@ from app.modules.users.dto import CreateUserDto, UpdateUserDto, UserDto
 from tests.fakes.dispatch import RecordingDispatch
 from tests.fakes.events import RecordingEventPublisher
 from tests.fakes.payment_texts import FixedPaymentTexts
+from tests.fakes.recurring import make_recurring_checkout
 from tests.fakes.telegram_bot import FakeBotSession, use_fake_bot
 from tests.modules.settings.factories import SHOP_SETTINGS_FIELDS
 from tests.modules.subscriptions.factories import (
@@ -109,6 +112,7 @@ from tests.modules.subscriptions.factories import (
     make_eligibility,
     make_plan_snapshot,
 )
+from tests.modules.transactions.test_repository import _order_dto as _repository_order_dto
 
 _SHOP_FIELDS: Final[set[str]] = {field.name for field in dataclasses.fields(UpdateShopSettingsDto)}
 
@@ -211,6 +215,7 @@ def create_checkout_use_case(
         event_publisher,
         LegalAcceptanceRecorder(legal_repository, translation_repository),
         FixedPaymentTexts(),
+        make_recurring_checkout(plan_repository.session),
     )
 
 
@@ -498,6 +503,7 @@ async def test_concurrent_free_checkouts_stop_at_the_cap(
             RecordingEventPublisher(),
             LegalAcceptanceRecorder(LegalRepository(session), TranslationRepository(session)),
             FixedPaymentTexts(),
+            make_recurring_checkout(session),
         )
         try:
             await use_case(
@@ -2290,6 +2296,137 @@ async def test_checkout_unlimited_downgrade_is_free_order(
     assert order.status is TransactionStatus.PAID
     assert fake_gateway.create_payment_calls == []
     assert len(purchase_dispatch.messages) == 1
+
+
+async def _recurring_attempt(
+    session: AsyncSession,
+    transaction_repository: TransactionRepository,
+    *,
+    user_id: int,
+    plan_id: int,
+    subscription_id: int,
+    submitted: bool,
+) -> int:
+    order = await transaction_repository.create(
+        replace(
+            _repository_order_dto(user_id=user_id, plan_id=plan_id, idempotency_key="auto-1"),
+            purchase_type=PurchaseType.RENEW,
+            target_subscription_id=subscription_id,
+            is_recurring=True,
+        )
+    )
+    session.add(
+        RecurringPayment(
+            subscription_id=subscription_id,
+            enabled=True,
+            pending_transaction_id=order.id,
+            submitted_at=datetime_now() if submitted else None,
+            next_attempt_at=datetime_now(),
+        )
+    )
+    await session.flush()
+    return order.id
+
+
+async def test_checkout_refused_while_auto_charge_submitted(
+    create_checkout_use_case: CreateCheckoutUseCase,
+    _active_yookassa: None,
+    actor: UserDto,
+    plan: PlanDto,
+    subscription_repository: SubscriptionRepository,
+    transaction_repository: TransactionRepository,
+) -> None:
+    subscription_id = await _seed_subscription(
+        subscription_repository, user_id=actor.id, remnawave_user_id=820_201, plan_id=plan.id
+    )
+    await _recurring_attempt(
+        subscription_repository.session,
+        transaction_repository,
+        user_id=actor.id,
+        plan_id=plan.id,
+        subscription_id=subscription_id,
+        submitted=True,
+    )
+    with pytest.raises(ConflictError) as error:
+        await create_checkout_use_case(
+            actor,
+            replace(
+                _checkout_dto(actor, plan),
+                purchase_type=PurchaseType.RENEW,
+                target_subscription_id=subscription_id,
+            ),
+        )
+    assert error.value.code is ErrorCode.RECURRING_PAYMENT_IN_PROGRESS
+
+
+async def test_checkout_refused_when_auto_charge_is_sent_while_it_prices(
+    create_checkout_use_case: CreateCheckoutUseCase,
+    _active_yookassa: None,
+    actor: UserDto,
+    plan: PlanDto,
+    subscription_repository: SubscriptionRepository,
+    transaction_repository: TransactionRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    subscription_id = await _seed_subscription(
+        subscription_repository, user_id=actor.id, remnawave_user_id=820_203, plan_id=plan.id
+    )
+    order_terms = create_checkout_use_case._order_terms
+
+    async def _worker_sends_meanwhile(*args: Any, **kwargs: Any) -> Any:
+        # the automatic charge goes out after the first checks, before the order exists
+        await _recurring_attempt(
+            subscription_repository.session,
+            transaction_repository,
+            user_id=actor.id,
+            plan_id=plan.id,
+            subscription_id=subscription_id,
+            submitted=True,
+        )
+        return await order_terms(*args, **kwargs)
+
+    monkeypatch.setattr(create_checkout_use_case, "_order_terms", _worker_sends_meanwhile)
+    with pytest.raises(ConflictError) as error:
+        await create_checkout_use_case(
+            actor,
+            replace(
+                _checkout_dto(actor, plan),
+                purchase_type=PurchaseType.RENEW,
+                target_subscription_id=subscription_id,
+            ),
+        )
+    assert error.value.code is ErrorCode.RECURRING_PAYMENT_IN_PROGRESS
+
+
+async def test_checkout_allowed_when_reserved_but_not_submitted(
+    create_checkout_use_case: CreateCheckoutUseCase,
+    _active_yookassa: None,
+    actor: UserDto,
+    plan: PlanDto,
+    subscription_repository: SubscriptionRepository,
+    transaction_repository: TransactionRepository,
+) -> None:
+    subscription_id = await _seed_subscription(
+        subscription_repository, user_id=actor.id, remnawave_user_id=820_202, plan_id=plan.id
+    )
+    reserved = await _recurring_attempt(
+        subscription_repository.session,
+        transaction_repository,
+        user_id=actor.id,
+        plan_id=plan.id,
+        subscription_id=subscription_id,
+        submitted=False,
+    )
+    result = await create_checkout_use_case(
+        actor,
+        replace(
+            _checkout_dto(actor, plan),
+            purchase_type=PurchaseType.RENEW,
+            target_subscription_id=subscription_id,
+        ),
+    )
+    assert result.order_id != reserved
+    assert (await transaction_repository.get_by_id(reserved)).status is TransactionStatus.CANCELED
 
 
 async def test_test_payment_issues_a_stars_invoice_to_an_admin_with_telegram(

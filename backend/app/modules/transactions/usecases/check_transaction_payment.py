@@ -91,6 +91,9 @@ class CheckTransactionPaymentUseCase(UseCase[CheckTransactionPaymentDto, Payment
                         current=frozenset({current.status}),
                         external_payment_id=payment.provider_payment_id,
                     )
+                    await self._transaction_repository.remember_payment_method(
+                        current.id, payment.saved_payment_method_id, payment.payment_method_shop_id
+                    )
                     # a test order is never issued, nor held
                     issuable = not current.is_test and await clear_late_payment(
                         current,

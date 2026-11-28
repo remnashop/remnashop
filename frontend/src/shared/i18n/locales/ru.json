@@ -994,7 +994,12 @@
       "AdLinkAttributedEvent": "Переход по рекламной ссылке",
       "BackupCompletedEvent": "Резервная копия создана",
       "DailyReportEvent": "Ежедневный отчёт",
-      "ConnectGuideChangedEvent": "Инструкция подключения изменена"
+      "ConnectGuideChangedEvent": "Инструкция подключения изменена",
+      "RecurringPaymentUpcomingEvent": "Предстоящий автоплатёж",
+      "RecurringPaymentFailedEvent": "Неудачный автоплатёж",
+      "RecurringPaymentPausedEvent": "Автопродление приостановлено",
+      "RecurringPaymentExhaustedEvent": "Повторы автоплатежа закончились",
+      "RecurringPaymentManagedEvent": "Управление автоплатежом"
     },
     "eventVariants": {
       "trialActivated": "Пробная подписка активирована",
@@ -1868,7 +1873,8 @@
         "require_paid_purchase": "Этот способ оплаты появится у клиента после первой оплаты другим способом. Если других способов в Telegram нет, новые клиенты не смогут оплатить в боте и Mini App.",
         "verify_ip": "Принимать уведомления только с адресов YooKassa. Если прокси перед сервером (например, Cloudflare) скрывает настоящий IP, настройте в реверс-прокси передачу реального адреса (realip); выключайте, только если это невозможно.",
         "cabinet_shop_enabled": "Оплаты из веб-кабинета идут в свой магазин, бот и Mini App остаются в основном. Каждый заказ проверяется в магазине, куда был оплачен, поэтому не удаляйте ID и ключ магазина, пока по его заказам возможны возвраты.",
-        "relay_enabled": "Все каналы платят через один релей paygate, ключ его магазина хранится там; поля магазинов для новых оплат не используются. В FORWARD_URL у paygate укажите адрес вебхука выше: его уведомления проверяются по подписи, а не по IP YooKassa."
+        "relay_enabled": "Все каналы платят через один релей paygate, ключ его магазина хранится там; поля магазинов для новых оплат не используются. В FORWARD_URL у paygate укажите адрес вебхука выше: его уведомления проверяются по подписи, а не по IP YooKassa.",
+        "payment_mode": "«Только разовые платежи» — без автопродления. «Только автоплатежи» — оплатить можно, только дав отдельное согласие на автосписания. «Разовые + автоплатежи» — клиент сам решает, включать ли автопродление. Автоплатежи сначала нужно подключить в личном кабинете ЮKassa."
       },
       "title": "Платёжные шлюзы",
       "description": "Конфигурация платёжных систем",
@@ -1935,7 +1941,28 @@
         "relay_enabled": "Оплата через paygate",
         "relay_url": "Адрес paygate",
         "relay_ingress_secret": "Секрет подписи запросов (INGRESS_SECRET)",
-        "relay_forward_secret": "Секрет подписи уведомлений (FORWARD_SECRET)"
+        "relay_forward_secret": "Секрет подписи уведомлений (FORWARD_SECRET)",
+        "payment_mode": "Режим оплаты",
+        "recurring_lead_minutes": "Списание до окончания",
+        "recurring_retry_minutes": "Повтор после сбоя кассы",
+        "recurring_max_overdue_hours": "Окно повторов после окончания",
+        "recurring_notice_lead_minutes": "Уведомление до списания"
+      },
+      "choices": {
+        "payment_mode": {
+          "single": "Только разовые платежи",
+          "recurring": "Только автоплатежи",
+          "both": "Разовые + автоплатежи"
+        }
+      },
+      "dependentGroups": {
+        "payment_mode": "Автопродление"
+      },
+      "suffixes": {
+        "recurring_lead_minutes": "мин",
+        "recurring_retry_minutes": "мин",
+        "recurring_max_overdue_hours": "ч",
+        "recurring_notice_lead_minutes": "мин"
       }
     },
     "webPush": {
@@ -2689,7 +2716,13 @@
     "ACCESS_SETTINGS_MANAGE": "Изменение настроек доступа",
     "BOT_REQUIREMENTS_VIEW": "Просмотр требований бота",
     "BOT_REQUIREMENTS_MANAGE": "Изменение требований бота",
-    "PAYMENT_WAITLIST_VIEW": "Просмотр листа ожидания оплаты"
+    "PAYMENT_WAITLIST_VIEW": "Просмотр листа ожидания оплаты",
+    "TRANSACTIONS_RECURRING_VIEW": "Просмотр автоплатежей",
+    "TRANSACTIONS_RECURRING_SUMMARY_VIEW": "Просмотр сводки по автоплатежам",
+    "TRANSACTIONS_RECURRING_CHECK": "Проверка ожидающего автоплатежа в ЮKassa",
+    "TRANSACTIONS_RECURRING_CLOSE": "Закрытие ожидающего автоплатежа с отзывом согласия клиента",
+    "TRANSACTIONS_RECURRING_RETRY": "Повтор автоплатежа после исправления",
+    "TRANSACTIONS_RECURRING_CONSENT_VIEW": "Просмотр согласия клиента на автопродление"
   },
   "permissionCategories": {
     "botSettings": "Telegram-бот",
@@ -3986,6 +4019,125 @@
         "telegram": "Telegram"
       },
       "name": "Имя"
+    },
+    "recurring": {
+      "searchPlaceholder": "Клиент или ID подписки",
+      "error": "Не удалось загрузить автоплатежи. Повторите запрос.",
+      "empty": "Автоплатежей с выбранным состоянием нет.",
+      "limit": "Предел",
+      "states": {
+        "enabled": "Включено",
+        "disabled": "Отключено",
+        "pending": "Ожидается платёж",
+        "retrying": "Повторная оплата",
+        "attention": "Требует внимания"
+      },
+      "next": {
+        "check": "Проверка",
+        "debit": "Следующая попытка",
+        "expiry": "Подписка до"
+      },
+      "kpi": {
+        "enabled": "Включено",
+        "ofTotal": "из {{total}}",
+        "disabled_one": "{{count, number}} отключил клиент",
+        "disabled_few": "{{count, number}} отключили клиенты",
+        "disabled_many": "{{count, number}} отключили клиенты",
+        "disabled_other": "{{count, number}} отключили клиенты",
+        "attention": "Требуют внимания",
+        "inProgress": "Ожидают оплату: {{pending}}, в повторах: {{retrying}}",
+        "paid": "Успешные продления",
+        "failed_one": "{{count, number}} неудачная попытка",
+        "failed_few": "{{count, number}} неудачные попытки",
+        "failed_many": "{{count, number}} неудачных попыток",
+        "failed_other": "{{count, number}} неудачные попытки",
+        "revenue": "Выручка автоплатежей",
+        "allTime": "за всё время"
+      },
+      "dialog": {
+        "title": "Автоплатёж подписки #{{id}}",
+        "openSubscription": "К подписке",
+        "expiry": "Подписка действует до",
+        "expired": "уже истекла",
+        "sections": {
+          "state": "Состояние",
+          "payment": "Платёж",
+          "consent": "Согласие клиента"
+        },
+        "firstFailure_one": "Первая ошибка {{date}}, {{count, number}} повтор",
+        "firstFailure_few": "Первая ошибка {{date}}, {{count, number}} повтора",
+        "firstFailure_many": "Первая ошибка {{date}}, {{count, number}} повторов",
+        "firstFailure_other": "Первая ошибка {{date}}, {{count, number}} повтора",
+        "order": "Заказ",
+        "openOrder": "Открыть",
+        "providerId": "ID в ЮKassa",
+        "submitted": "Отправлен",
+        "nextAttempt": "Следующая попытка",
+        "savedCard": "Карта сохранена",
+        "acceptedAt": "Принято",
+        "revokedAt": "Отозвано",
+        "termsText": "Текст, который принял клиент"
+      },
+      "reasons": {
+        "customer_disabled": "Клиент отключил автопродление",
+        "bank_declined": "Банк отклонил платёж",
+        "insufficient_funds": "Недостаточно средств",
+        "issuer_unavailable": "Банк временно недоступен",
+        "payment_method_unavailable": "Способ оплаты временно недоступен",
+        "provider_unavailable": "Нет связи с платёжным сервисом",
+        "merchant_unavailable": "Магазину недоступно проведение платежей",
+        "provider_configuration_error": "Требуется исправить настройки платежа или чека",
+        "provider_request_rejected": "ЮKassa не приняла платёж с сохранённой карты",
+        "provider_rejected": "Платёжный сервис отклонил запрос",
+        "permission_revoked": "Разрешение на списания отозвано в платёжном сервисе",
+        "payment_method_restricted": "Сохранённый способ оплаты больше не действует",
+        "card_expired": "Истёк срок действия карты",
+        "fraud_suspected": "Платёж заблокирован банком",
+        "price_changed": "Цена превышает согласованный предел",
+        "subscription_changed": "Изменились условия подписки",
+        "shop_changed": "Изменился магазин для приёма платежей",
+        "consent_required": "Требуется подтверждение условий автопродления",
+        "plan_unavailable": "Тариф недоступен для покупки",
+        "customer_email_required": "Для чека требуется адрес электронной почты",
+        "gateway_disabled": "Приём автоплатежей выключен магазином",
+        "subscription_unavailable": "Подписка недоступна для продления",
+        "payment_status_unknown": "Результат предыдущего платежа пока неизвестен",
+        "pending_timeout": "Платёж слишком долго ожидает подтверждения",
+        "retries_exhausted": "Закончились повторные попытки оплаты",
+        "payment_method_not_saved": "Платёжный сервис не сохранил способ оплаты",
+        "renewal_window_expired": "Истёк согласованный срок повторных списаний",
+        "admin_closed": "Ожидание платежа закрыто администратором",
+        "refunded": "Платёж был возвращён"
+      },
+      "hints": {
+        "merchant_unavailable": "Проверьте ID магазина и секретный ключ в настройках ЮKassa, затем нажмите «Повторить».",
+        "provider_configuration_error": "Проверьте ставку НДС и настройки чека в ЮKassa, затем нажмите «Повторить».",
+        "provider_request_rejected": "Проверьте настройки магазина в ЮKassa (НДС, чек, способы оплаты) и нажмите «Повторить». Если повтор снова отклонён, ЮKassa не принимает саму карту: клиенту нужно оплатить вручную и заново включить автопродление.",
+        "provider_unavailable": "ЮKassa не ответила; следующая попытка назначена автоматически.",
+        "shop_changed": "Карта сохранена для другого магазина ЮKassa; клиенту нужно один раз оплатить вручную, чтобы сохранить её заново.",
+        "price_changed": "Продление теперь стоит больше, чем согласился клиент; ему нужно принять новые условия.",
+        "plan_unavailable": "Сделайте тариф снова доступным для покупки или предложите клиенту другой.",
+        "customer_email_required": "Чеки включены: укажите email магазина для платежей или попросите email у клиента.",
+        "gateway_disabled": "Автопродление возобновится, когда ЮKassa и автоплатежи снова будут включены.",
+        "payment_status_unknown": "Проверьте платёж в ЮKassa: если он прошёл, выдайте заказ; если нет, закройте ожидание.",
+        "pending_timeout": "Проверьте платёж в ЮKassa; статус также опрашивается каждый час.",
+        "payment_method_not_saved": "ЮKassa не сохранила карту; клиенту нужно ещё раз оплатить вручную с включённым автопродлением.",
+        "consent_required": "Клиенту нужно снова принять условия автопродления.",
+        "retries_exhausted": "Банк продолжал отклонять платёж; клиенту нужно продлить подписку вручную.",
+        "renewal_window_expired": "Согласованный срок автоматических списаний истёк; клиенту нужно продлить подписку вручную."
+      },
+      "actions": {
+        "check": "Проверить в ЮKassa",
+        "close": "Закрыть ожидание",
+        "retry": "Повторить после исправления",
+        "done": "Действие выполнено",
+        "closeTitle": "Закрыть ожидание платежа?",
+        "closeMessage": "Ожидание будет закрыто, прежнее согласие на автопродление будет отозвано. Отправленный платёж в ЮKassa всё ещё может завершиться и продлить подписку. Повторные списания потребуют нового согласия клиента."
+      }
+    },
+    "tabs": {
+      "orders": "Заказы",
+      "recurring": "Автоплатежи"
     }
   },
   "subscriptions": {
@@ -4981,7 +5133,16 @@
     "BOT_NOT_RUNNING": "Бот не запущен.",
     "BOT_PROXY_URL_INVALID": "Неверный адрес прокси: нужен socks5, socks5h или http с хостом и портом.",
     "TRANSLATION_VARIABLE_NOT_ALLOWED": "В тексте есть переменная или выражение, которых нет в исходном тексте.",
-    "TRANSLATION_VARIABLE_UNKNOWN": "Переменных {{detail}} нет в исходном тексте. Если текст правили до обновления, сбросьте его и внесите правки заново."
+    "TRANSLATION_VARIABLE_UNKNOWN": "Переменных {{detail}} нет в исходном тексте. Если текст правили до обновления, сбросьте его и внесите правки заново.",
+    "RECURRING_CONSENT_REQUIRED": "Для этого способа оплаты требуется отдельное согласие на автопродление.",
+    "GATEWAY_FIELD_INVALID_CHOICE": "Выберите доступный режим оплаты.",
+    "GATEWAY_FIELD_OUT_OF_RANGE": "Значение вне допустимого диапазона.",
+    "RECURRING_PAYMENT_IN_PROGRESS": "Автопродление этой подписки уже оплачивается.",
+    "RECURRING_TERMS_CHANGED": "Условия автопродления изменились. Проверьте их и подтвердите снова.",
+    "RECURRING_NOT_AVAILABLE": "Автопродление для этой подписки недоступно.",
+    "RECURRING_RETRY_NOT_ALLOWED": "Этот автоплатёж нельзя повторить при текущем согласии.",
+    "RECURRING_PAYMENT_STATE_CHANGED": "Автоплатёж изменился. Обновите список и попробуйте снова.",
+    "TRANSLATION_TOO_LONG": "Текст слишком длинный: бот не сможет показать его одним сообщением."
   },
   "loyalty": {
     "settings": {

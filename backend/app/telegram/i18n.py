@@ -9,7 +9,7 @@ from fluent_compiler.bundle import FluentBundle
 from fluentogram import FluentTranslator, TranslatorHub, TranslatorRunner
 
 from app.core.config import AppConfig
-from app.core.constants import DATE_FORMAT, TIMEZONE
+from app.core.constants import DATE_FORMAT, DATETIME_FORMAT, TIMEZONE
 from app.core.db.standalone import standalone_session
 from app.core.enums import Locale
 from app.core.utils.time import datetime_now, period_parts
@@ -18,7 +18,6 @@ from app.modules.translations import TranslationRepository
 from app.modules.users import UserDto
 from app.telegram.dialogs.rendering import TrustedHtml
 
-_DATETIME_FORMAT: Final[str] = "%d.%m.%Y %H:%M"
 # Bot API date_time entity: d = short date, t = short time
 _TG_DATETIME_FORMAT: Final[str] = "dt"
 _TG_DATE_FORMAT: Final[str] = "d"
@@ -75,7 +74,7 @@ def use_shop_zone(zone: tzinfo) -> None:
 
 # every date the bot shows a customer goes through these two, written as the shop's
 def format_datetime(value: Optional[datetime]) -> str:
-    return value.astimezone(_shop_zone.get()).strftime(_DATETIME_FORMAT) if value else "—"
+    return value.astimezone(_shop_zone.get()).strftime(DATETIME_FORMAT) if value else "—"
 
 
 def format_date(value: Optional[datetime]) -> str:

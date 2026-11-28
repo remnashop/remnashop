@@ -19,7 +19,11 @@ from app.modules.subscriptions.dto import (
     SubscriptionDto,
     SubscriptionRefDto,
 )
-from app.modules.subscriptions.eligibility import PurchaseEligibility, get_owned_target
+from app.modules.subscriptions.eligibility import (
+    PurchaseEligibility,
+    get_manageable_subscription,
+    get_owned_target,
+)
 from app.modules.subscriptions.events import (
     PanelSyncDirection,
     SubscriptionAddOnGrantedEvent,
@@ -53,6 +57,7 @@ from app.modules.subscriptions.ports import (
     OpenOrderCounter,
     OrderFailer,
     PaidOrderHold,
+    RecurringPaymentCloser,
     ReferrerLookup,
 )
 from app.modules.subscriptions.repository import SubscriptionRepository
@@ -117,6 +122,7 @@ __all__ = [
     "PurchaseSubscriptionDispatch",
     "PurchaseSubscriptionDto",
     "PurchaseSubscriptionUseCase",
+    "RecurringPaymentCloser",
     "ReferrerLookup",
     "ReissueSubscriptionUseCase",
     "RenameDeviceDto",
@@ -142,6 +148,7 @@ __all__ = [
     "TorrentBlockerReportEvent",
     "can_renew",
     "current_plan_snapshots",
+    "get_manageable_subscription",
     "get_owned_target",
     "get_subscriptions_providers",
     "is_unlimited_expiry",

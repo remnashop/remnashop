@@ -25,12 +25,30 @@ from app.modules.notifications.telegram_data import CardData, TelegramCardDataLo
 from app.modules.notifications.telegram_layout import LAYOUTS, build_telegram_card
 from app.modules.notifications.telegram_queue import AdminTelegramQueue
 from app.modules.notifications.webpush import WebPushSender
+from app.modules.recurring_payments import (
+    RecurringReason,
+)
 from app.modules.users import UserDto, UserRepository
 
 _RECIPIENT_ROLES: Final[tuple[Role, ...]] = (Role.ADMIN, Role.OWNER)
 # push services cap the payload near 4 KB and Telegram a message at 4096 chars;
 # a raw backup error can exceed both
 MAX_BODY_LENGTH: Final[int] = 1000
+
+
+_RECURRING_REASON_EVENTS: Final[frozenset[str]] = frozenset(
+    {"RecurringPaymentPausedEvent", "RecurringPaymentExhaustedEvent"}
+)
+
+
+def _for_admins(data: DeliverNotificationDto) -> bool:
+    # an auto-renewal pause reaches admins only when the shop, not the customer, must act
+    if data.event_type not in _RECURRING_REASON_EVENTS:
+        return True
+    try:
+        return RecurringReason(str(data.payload.get("reason"))).policy.admin_notice
+    except ValueError:
+        return True
 
 
 def _wanted_channels(
@@ -110,7 +128,7 @@ class DeliverNotificationUseCase(UseCase[DeliverNotificationDto, None]):
 
     async def _execute(self, actor: Actor, data: DeliverNotificationDto) -> None:
         group = group_of(data.event_type)
-        if group is None:
+        if group is None or not _for_admins(data):
             return
         try:
             async with self._uow:

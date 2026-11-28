@@ -1,7 +1,7 @@
 from aiogram.enums import ParseMode
 from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Button, ListGroup
+from aiogram_dialog.widgets.kbd import Button, ListGroup, SwitchTo
 from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
@@ -18,9 +18,11 @@ from app.telegram.routers.subscriptions.getters import (
     device_rename_getter,
     devices_getter,
     subscription_card_getter,
+    subscription_recurring_terms_getter,
     subscriptions_list_getter,
 )
 from app.telegram.routers.subscriptions.handlers import (
+    on_auto_renew,
     on_device_name_input,
     on_device_selected,
     on_subscription_selected,
@@ -52,10 +54,44 @@ subscriptions_list = Window(
 subscription_card = Window(
     DynamicMedia("banner", when="banner"),
     Format("{window_text}"),
+    Button(
+        Format("{auto_renew_text}"),
+        style=LabelIcon("auto_renew_text"),
+        id="auto_renew_off",
+        on_click=on_auto_renew,
+        when="auto_renew_off",
+    ),
+    ListGroup(
+        Button(
+            Format("{auto_renew_text}"),
+            style=LabelIcon("auto_renew_text"),
+            id="auto_renew_on",
+            on_click=on_auto_renew,
+        ),
+        id="renew_consent",
+        item_id_getter=lambda item: item["id"],
+        items="auto_renew_choices",
+        when="auto_renew_on",
+    ),
+    SwitchTo(
+        Format("{auto_renew_terms_text}"),
+        style=LabelIcon("auto_renew_terms_text"),
+        id="auto_renew_terms",
+        state=Subscriptions.RECURRING_TERMS,
+        when="auto_renew_terms",
+    ),
     ConfigKeyboard(window_key="subscriptions.card"),
     parse_mode=ParseMode.HTML,
     state=Subscriptions.CARD,
     getter=subscription_card_getter,
+)
+
+recurring_terms = Window(
+    Format("{window_text}"),
+    SwitchTo(Format("{back_text}"), id="back", state=Subscriptions.CARD),
+    parse_mode=ParseMode.HTML,
+    state=Subscriptions.RECURRING_TERMS,
+    getter=subscription_recurring_terms_getter,
 )
 
 devices = Window(
@@ -128,6 +164,7 @@ device_confirm_reissue = Window(
 router = Dialog(
     subscriptions_list,
     subscription_card,
+    recurring_terms,
     devices,
     device,
     device_rename,
